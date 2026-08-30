@@ -408,15 +408,20 @@ function todayISO(){
   return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
 }
 
-async function getTakenSlots(serviceId, date){
+function toLocalDateStr(iso){
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function getTakenSlots(serviceId, date, excludeId){
   const { start, end } = dayRange(date);
   const { data } = await sb.from('appointments')
-    .select('starts_at')
+    .select('id, starts_at')
     .eq('service_id', serviceId)
     .neq('status', 'cancelado')
     .gte('starts_at', start)
     .lte('starts_at', end);
-  return (data || []).map(a => toHHMM(a.starts_at));
+  return (data || []).filter(a => a.id !== excludeId).map(a => toHHMM(a.starts_at));
 }
 
 // ---------- utilidades ----------
@@ -838,6 +843,8 @@ function openClientModal(id){
   if(!a) return;
   const c = a.profiles || a.clients;
   const tipo = a.profiles ? 'Cliente registrado' : 'Cliente sin cuenta';
+  const canEdit = a.status === 'pendiente' || a.status === 'confirmado';
+
   document.getElementById('client-modal-body').innerHTML = `
     <h3>${c?.nombre || ''} ${c?.apellido || ''}</h3>
     <p class="modal-tag">${tipo}</p>
@@ -846,13 +853,71 @@ function openClientModal(id){
     <div class="modal-row"><span>Servicio</span><strong>${a.services?.name || '—'}</strong></div>
     <div class="modal-row"><span>Horario</span><strong>${fmtDateTime(a.starts_at)}</strong></div>
     <div class="modal-row"><span>Estado</span><span class="status ${a.status}">${a.status}</span></div>
+
+    ${canEdit ? `
+      <label style="display:block; font-size:12px; color:var(--muted); margin:18px 0 8px; text-transform:uppercase; letter-spacing:0.05em;">Reprogramar</label>
+      <div class="field-group" style="margin-bottom:0;">
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" id="modal-reschedule-date" onchange="refreshModalSlots('${a.id}')">
+        </div>
+        <div class="field">
+          <label>Hora</label>
+          <select id="modal-reschedule-time"><option value="">Elegí fecha</option></select>
+        </div>
+      </div>
+      <button class="primary" style="width:100%; margin-top:10px;" onclick="saveReschedule('${a.id}')">Guardar cambios</button>
+      <div id="modal-reschedule-msg" class="msg"></div>
+    ` : ''}
+
     <div class="modal-actions">
       ${a.status==='pendiente' ? `<button onclick="setStatus('${a.id}','confirmado'); closeClientModal();">Confirmar</button>` : ''}
-      ${(a.status==='pendiente' || a.status==='confirmado') ? `<button class="danger" onclick="setStatus('${a.id}','cancelado'); closeClientModal();">Cancelar turno</button>` : ''}
+      ${canEdit ? `<button class="danger" onclick="setStatus('${a.id}','cancelado'); closeClientModal();">Cancelar turno</button>` : ''}
       ${a.status==='confirmado' ? `<button onclick="setStatus('${a.id}','completado'); closeClientModal();">Marcar hecho</button>` : ''}
     </div>
   `;
   document.getElementById('client-modal').classList.remove('hidden');
+
+  if(canEdit){
+    document.getElementById('modal-reschedule-date').value = toLocalDateStr(a.starts_at);
+    refreshModalSlots(a.id, true);
+  }
+}
+
+async function refreshModalSlots(id, keepCurrent){
+  const a = adminAppointmentsCache[id];
+  const date = document.getElementById('modal-reschedule-date').value;
+  const sel = document.getElementById('modal-reschedule-time');
+  if(!a || !sel) return;
+  if(!date){ sel.innerHTML = '<option value="">Elegí una fecha</option>'; return; }
+
+  const taken = await getTakenSlots(a.service_id, date, id);
+  const free = generateSlots().filter(t => !taken.includes(t));
+  sel.innerHTML = free.length
+    ? free.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">Sin horarios disponibles ese día</option>';
+
+  const currentTime = toHHMM(a.starts_at);
+  if(keepCurrent && free.includes(currentTime)) sel.value = currentTime;
+}
+
+async function saveReschedule(id){
+  const date = document.getElementById('modal-reschedule-date').value;
+  const time = document.getElementById('modal-reschedule-time').value;
+  const msg = document.getElementById('modal-reschedule-msg');
+  msg.textContent = '';
+  if(!date || !time){ msg.textContent = 'Elegí fecha y hora.'; msg.className = 'msg error'; return; }
+
+  const starts_at = new Date(`${date}T${time}:00`).toISOString();
+  const { error } = await sb.from('appointments').update({ starts_at }).eq('id', id);
+  if(error){
+    msg.textContent = error.code === '23505' ? 'Ese horario ya está ocupado para ese servicio.' : error.message;
+    msg.className = 'msg error';
+    return;
+  }
+  closeClientModal();
+  loadAdminAppointments();
+  loadCalendar();
 }
 
 function closeClientModal(){

@@ -349,6 +349,38 @@
       </section>
     </div>
 
+    <div id="admin-services-section" class="hidden">
+      <div class="hero">
+        <div class="eyebrow">Panel del local</div>
+        <h1>Servicios.</h1>
+        <p>Agregá servicios nuevos o actualizá nombre, duración y precio de los que ya tenés.</p>
+      </div>
+      <section>
+        <h2>Nuevo servicio</h2>
+        <div class="card booking-row">
+          <div class="field">
+            <label>Nombre</label>
+            <input type="text" id="new-service-name" placeholder="Corte clásico">
+          </div>
+          <div class="field">
+            <label>Duración (min)</label>
+            <input type="number" id="new-service-duration" value="30" min="5" step="5">
+          </div>
+          <div class="field">
+            <label>Precio</label>
+            <input type="number" id="new-service-price" min="0" step="100" placeholder="6500">
+          </div>
+          <button class="primary" onclick="createService()">Agregar servicio</button>
+        </div>
+        <div id="new-service-msg" class="msg"></div>
+      </section>
+
+      <section>
+        <h2>Servicios actuales</h2>
+        <div id="services-manage-list"></div>
+      </section>
+    </div>
+
   </div>
 
 </main>
@@ -447,6 +479,7 @@ function renderNav(){
     ${isAdmin ? `
       <button class="tab-btn ${adminSubView==='agenda' ? 'active' : ''}" onclick="setAdminSubView('agenda')">Agenda</button>
       <button class="tab-btn ${adminSubView==='calendario' ? 'active' : ''}" onclick="setAdminSubView('calendario')">Calendario</button>
+      <button class="tab-btn ${adminSubView==='servicios' ? 'active' : ''}" onclick="setAdminSubView('servicios')">Servicios</button>
     ` : ''}
     <span class="who">${currentProfile ? currentProfile.nombre + ' ' + currentProfile.apellido : ''} · ${currentProfile?.role || ''}</span>
     <button onclick="doLogout()">Salir</button>
@@ -457,8 +490,10 @@ function setAdminSubView(view){
   adminSubView = view;
   document.getElementById('admin-agenda-section').classList.toggle('hidden', view!=='agenda');
   document.getElementById('admin-calendar-section').classList.toggle('hidden', view!=='calendario');
+  document.getElementById('admin-services-section').classList.toggle('hidden', view!=='servicios');
   renderNav();
   if(view === 'calendario') loadCalendar();
+  if(view === 'servicios') loadServicesManage();
 }
 
 function toggleAuth(){
@@ -711,6 +746,79 @@ async function loadAdminFormOptions(){
   serviceSel.innerHTML = services.length
     ? services.map(s => `<option value="${s.id}">${s.name} — ${money(s.price)}</option>`).join('')
     : '<option value="">No hay servicios</option>';
+}
+
+// ---------- gestión de servicios ----------
+async function loadServicesManage(){
+  const { data, error } = await sb.from('services').select('*').order('price');
+  const box = document.getElementById('services-manage-list');
+  if(error || !data?.length){ box.innerHTML = '<div class="empty">No hay servicios cargados.</div>'; return; }
+
+  box.innerHTML = data.map(s => `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="booking-row">
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="svc-name-${s.id}" value="${s.name}">
+        </div>
+        <div class="field">
+          <label>Duración (min)</label>
+          <input type="number" id="svc-duration-${s.id}" value="${s.duration_min}" min="5" step="5">
+        </div>
+        <div class="field">
+          <label>Precio</label>
+          <input type="number" id="svc-price-${s.id}" value="${s.price}" min="0" step="100">
+        </div>
+        <div class="field" style="max-width:130px;">
+          <label>Estado</label>
+          <select id="svc-active-${s.id}">
+            <option value="true" ${s.active ? 'selected' : ''}>Activo</option>
+            <option value="false" ${!s.active ? 'selected' : ''}>Inactivo</option>
+          </select>
+        </div>
+        <button class="primary" onclick="saveService('${s.id}')">Guardar</button>
+      </div>
+      <div id="svc-msg-${s.id}" class="msg"></div>
+    </div>
+  `).join('');
+}
+
+async function saveService(id){
+  const name = document.getElementById(`svc-name-${id}`).value.trim();
+  const duration_min = parseInt(document.getElementById(`svc-duration-${id}`).value, 10);
+  const price = parseFloat(document.getElementById(`svc-price-${id}`).value);
+  const active = document.getElementById(`svc-active-${id}`).value === 'true';
+  const msg = document.getElementById(`svc-msg-${id}`);
+  msg.textContent = '';
+
+  if(!name || !duration_min || isNaN(price)){
+    msg.textContent = 'Completá nombre, duración y precio.'; msg.className = 'msg error'; return;
+  }
+  const { error } = await sb.from('services').update({ name, duration_min, price, active }).eq('id', id);
+  if(error){ msg.textContent = error.message; msg.className = 'msg error'; return; }
+  msg.textContent = 'Guardado.'; msg.className = 'msg ok';
+  loadAdminFormOptions();
+}
+
+async function createService(){
+  const name = document.getElementById('new-service-name').value.trim();
+  const duration_min = parseInt(document.getElementById('new-service-duration').value, 10);
+  const price = parseFloat(document.getElementById('new-service-price').value);
+  const msg = document.getElementById('new-service-msg');
+  msg.textContent = '';
+
+  if(!name || !duration_min || isNaN(price)){
+    msg.textContent = 'Completá nombre, duración y precio.'; msg.className = 'msg error'; return;
+  }
+  const { error } = await sb.from('services').insert({ name, duration_min, price, active: true });
+  if(error){ msg.textContent = error.message; msg.className = 'msg error'; return; }
+
+  msg.textContent = 'Servicio agregado.'; msg.className = 'msg ok';
+  document.getElementById('new-service-name').value = '';
+  document.getElementById('new-service-duration').value = '30';
+  document.getElementById('new-service-price').value = '';
+  loadServicesManage();
+  loadAdminFormOptions();
 }
 
 async function refreshAdminSlots(){

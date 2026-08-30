@@ -124,6 +124,10 @@
   .service .meta{ font-size:12px; color:var(--muted); }
   .service .price{ font-family:'IBM Plex Mono', monospace; color:var(--brass); margin-top:8px; font-size:15px; }
 
+  .tab-btn.active{ border-color:var(--brass); color:var(--brass); background:rgba(201,162,39,0.08); }
+  .field-group{ display:flex; gap:12px; flex-wrap:wrap; flex:1; min-width:280px; }
+  .field-group .field{ flex:1; min-width:120px; margin-bottom:0; }
+
   .booking-row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
   .booking-row .field{ flex:1; min-width:180px; margin-bottom:0; }
 
@@ -193,7 +197,12 @@
       </div>
       <div id="register-form" class="hidden">
         <h3 style="margin-bottom:16px;">Crear cuenta</h3>
-        <div class="field"><label>Nombre completo</label><input type="text" id="reg-name"></div>
+        <div class="field-group" style="margin-bottom:14px;">
+          <div class="field"><label>Nombre</label><input type="text" id="reg-nombre"></div>
+          <div class="field"><label>Apellido</label><input type="text" id="reg-apellido"></div>
+        </div>
+        <div class="field"><label>Teléfono</label><input type="text" id="reg-telefono"></div>
+        <div class="field"><label>Dirección (opcional)</label><input type="text" id="reg-direccion"></div>
         <div class="field"><label>Email</label><input type="email" id="reg-email"></div>
         <div class="field"><label>Contraseña</label><input type="password" id="reg-pass"></div>
         <button class="primary" onclick="doRegister()" style="width:100%;">Crear cuenta</button>
@@ -246,24 +255,39 @@
     </div>
     <section>
       <h2>Cargar turno</h2>
-      <div class="card booking-row">
-        <div class="field">
+      <div class="card">
+        <div class="field" style="margin-bottom:16px;">
           <label>Cliente</label>
-          <select id="admin-client-select"><option value="">Cargando...</option></select>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="tab-btn active" id="tab-existing" onclick="setClientMode('existing')">Cliente existente</button>
+            <button type="button" class="tab-btn" id="tab-new" onclick="setClientMode('new')">Cliente nuevo</button>
+          </div>
         </div>
-        <div class="field">
-          <label>Servicio</label>
-          <select id="admin-service-select"><option value="">Cargando...</option></select>
+        <div class="booking-row">
+          <div class="field" id="existing-client-field">
+            <label>Elegir cliente</label>
+            <select id="admin-client-select"><option value="">Cargando...</option></select>
+          </div>
+          <div class="field-group hidden" id="new-client-fields">
+            <div class="field"><label>Nombre</label><input type="text" id="new-client-nombre" placeholder="Juan"></div>
+            <div class="field"><label>Apellido</label><input type="text" id="new-client-apellido" placeholder="Pérez"></div>
+            <div class="field"><label>Teléfono</label><input type="text" id="new-client-telefono" placeholder="11 5555-5555"></div>
+            <div class="field"><label>Dirección (opcional)</label><input type="text" id="new-client-direccion"></div>
+          </div>
+          <div class="field">
+            <label>Servicio</label>
+            <select id="admin-service-select"><option value="">Cargando...</option></select>
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="admin-booking-date">
+          </div>
+          <div class="field">
+            <label>Hora</label>
+            <input type="time" id="admin-booking-time">
+          </div>
+          <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
         </div>
-        <div class="field">
-          <label>Fecha</label>
-          <input type="date" id="admin-booking-date">
-        </div>
-        <div class="field">
-          <label>Hora</label>
-          <input type="time" id="admin-booking-time">
-        </div>
-        <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
       </div>
       <div id="admin-booking-msg" class="msg"></div>
     </section>
@@ -312,7 +336,7 @@ function renderNav(){
   const nav = document.getElementById('nav');
   if(!currentUser){ nav.innerHTML = ''; return; }
   nav.innerHTML = `
-    <span class="who">${currentProfile?.full_name || ''} · ${currentProfile?.role || ''}</span>
+    <span class="who">${currentProfile ? currentProfile.nombre + ' ' + currentProfile.apellido : ''} · ${currentProfile?.role || ''}</span>
     <button onclick="doLogout()">Salir</button>
   `;
 }
@@ -324,16 +348,19 @@ function toggleAuth(){
 
 // ---------- auth ----------
 async function doRegister(){
-  const full_name = document.getElementById('reg-name').value.trim();
+  const nombre = document.getElementById('reg-nombre').value.trim();
+  const apellido = document.getElementById('reg-apellido').value.trim();
+  const telefono = document.getElementById('reg-telefono').value.trim();
+  const direccion = document.getElementById('reg-direccion').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-pass').value;
   const msg = document.getElementById('register-msg');
   msg.textContent = '';
-  if(!full_name || !email || !password){
-    msg.textContent = 'Completá todos los campos.'; msg.className='msg error'; return;
+  if(!nombre || !apellido || !telefono || !email || !password){
+    msg.textContent = 'Completá nombre, apellido, teléfono, email y contraseña.'; msg.className='msg error'; return;
   }
   const { error } = await sb.auth.signUp({
-    email, password, options: { data: { full_name } }
+    email, password, options: { data: { nombre, apellido, telefono, direccion } }
   });
   if(error){ msg.textContent = error.message; msg.className='msg error'; return; }
   msg.textContent = 'Cuenta creada. Iniciando sesión...'; msg.className='msg ok';
@@ -377,7 +404,7 @@ async function boot(){
     subscribeRealtime();
   } else {
     showView('client');
-    document.getElementById('client-greet').textContent = `Hola, ${currentProfile?.full_name?.split(' ')[0] || ''}`;
+    document.getElementById('client-greet').textContent = `Hola, ${currentProfile?.nombre || ''}`;
     await loadServices();
     loadMyAppointments();
   }
@@ -458,18 +485,21 @@ async function cancelAppointment(id){
 async function loadAdminAppointments(){
   const { data, error } = await sb
     .from('appointments')
-    .select('*, services(name, price), profiles(full_name)')
+    .select('*, services(name, price), profiles(nombre, apellido, telefono), clients(nombre, apellido, telefono)')
     .order('starts_at', { ascending:true });
 
   const box = document.getElementById('admin-appointments');
   if(error || !data?.length){ box.innerHTML = '<div class="empty">No hay turnos cargados todavía.</div>'; return; }
 
-  box.innerHTML = data.map(a => `
+  box.innerHTML = data.map(a => {
+    const c = a.profiles || a.clients;
+    const nombre = c ? `${c.nombre} ${c.apellido} · ${c.telefono}` : 'Cliente';
+    return `
     <div class="ticket ${a.status}">
       <div class="num">${fmtDateTime(a.starts_at)}</div>
       <div class="info">
         <div class="svc">${a.services?.name || 'Servicio'}</div>
-        <p class="who">${a.profiles?.full_name || 'Cliente'}</p>
+        <p class="who">${nombre}</p>
       </div>
       <span class="status ${a.status}">${a.status}</span>
       ${a.status==='pendiente' ? `
@@ -478,7 +508,8 @@ async function loadAdminAppointments(){
       ` : ''}
       ${a.status==='confirmado' ? `<button onclick="setStatus('${a.id}','completado')">Marcar hecho</button>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function setStatus(id, status){
@@ -488,14 +519,37 @@ async function setStatus(id, status){
 
 let realtimeChannel = null;
 
+let clientMode = 'existing';
+
+function setClientMode(mode){
+  clientMode = mode;
+  document.getElementById('tab-existing').classList.toggle('active', mode==='existing');
+  document.getElementById('tab-new').classList.toggle('active', mode==='new');
+  document.getElementById('existing-client-field').classList.toggle('hidden', mode!=='existing');
+  document.getElementById('new-client-fields').classList.toggle('hidden', mode!=='new');
+}
+
 async function loadAdminFormOptions(){
   const clientSel = document.getElementById('admin-client-select');
   const serviceSel = document.getElementById('admin-service-select');
 
-  const { data: clients } = await sb.from('profiles').select('id, full_name').eq('role', 'cliente').order('full_name');
-  clientSel.innerHTML = clients?.length
-    ? clients.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')
-    : '<option value="">No hay clientes registrados</option>';
+  const [{ data: registered }, { data: manual }] = await Promise.all([
+    sb.from('profiles').select('id, nombre, apellido, telefono').eq('role', 'cliente').order('nombre'),
+    sb.from('clients').select('id, nombre, apellido, telefono').order('nombre')
+  ]);
+
+  let options = '';
+  if(registered?.length){
+    options += '<optgroup label="Registrados">' +
+      registered.map(c => `<option value="p_${c.id}">${c.nombre} ${c.apellido} · ${c.telefono}</option>`).join('') +
+      '</optgroup>';
+  }
+  if(manual?.length){
+    options += '<optgroup label="Sin cuenta">' +
+      manual.map(c => `<option value="c_${c.id}">${c.nombre} ${c.apellido} · ${c.telefono}</option>`).join('') +
+      '</optgroup>';
+  }
+  clientSel.innerHTML = options || '<option value="">No hay clientes todavía</option>';
 
   const { data: svcs } = await sb.from('services').select('*').eq('active', true).order('price');
   serviceSel.innerHTML = svcs?.length
@@ -504,20 +558,50 @@ async function loadAdminFormOptions(){
 }
 
 async function adminCreateAppointment(){
-  const client_id = document.getElementById('admin-client-select').value;
   const service_id = document.getElementById('admin-service-select').value;
   const date = document.getElementById('admin-booking-date').value;
   const time = document.getElementById('admin-booking-time').value;
   const msg = document.getElementById('admin-booking-msg');
   msg.textContent = '';
 
-  if(!client_id || !service_id || !date || !time){
-    msg.textContent = 'Completá cliente, servicio, fecha y hora.'; msg.className='msg error'; return;
+  if(!service_id || !date || !time){
+    msg.textContent = 'Completá servicio, fecha y hora.'; msg.className='msg error'; return;
   }
+
+  let client_id = null;
+  let walk_in_client_id = null;
+
+  if(clientMode === 'existing'){
+    const raw = document.getElementById('admin-client-select').value;
+    if(!raw){ msg.textContent = 'Elegí un cliente.'; msg.className='msg error'; return; }
+    if(raw.startsWith('p_')) client_id = raw.slice(2);
+    else walk_in_client_id = raw.slice(2);
+  } else {
+    const nombre = document.getElementById('new-client-nombre').value.trim();
+    const apellido = document.getElementById('new-client-apellido').value.trim();
+    const telefono = document.getElementById('new-client-telefono').value.trim();
+    const direccion = document.getElementById('new-client-direccion').value.trim();
+    if(!nombre || !apellido || !telefono){
+      msg.textContent = 'Completá nombre, apellido y teléfono del cliente nuevo.'; msg.className='msg error'; return;
+    }
+    const { data: newClient, error: clientErr } = await sb
+      .from('clients').insert({ nombre, apellido, telefono, direccion: direccion || null }).select().single();
+    if(clientErr){ msg.textContent = clientErr.message; msg.className='msg error'; return; }
+    walk_in_client_id = newClient.id;
+  }
+
   const starts_at = new Date(`${date}T${time}:00`).toISOString();
-  const { error } = await sb.from('appointments').insert({ client_id, service_id, starts_at, status:'confirmado' });
+  const { error } = await sb.from('appointments').insert({
+    client_id, walk_in_client_id, service_id, starts_at, status:'confirmado'
+  });
   if(error){ msg.textContent = error.message; msg.className='msg error'; return; }
+
   msg.textContent = 'Turno cargado.'; msg.className='msg ok';
+  document.getElementById('new-client-nombre').value = '';
+  document.getElementById('new-client-apellido').value = '';
+  document.getElementById('new-client-telefono').value = '';
+  document.getElementById('new-client-direccion').value = '';
+  loadAdminFormOptions();
   loadAdminAppointments();
 }
 

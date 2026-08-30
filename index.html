@@ -461,8 +461,11 @@ async function setStatus(id, status){
   loadAdminAppointments();
 }
 
+let realtimeChannel = null;
+
 function subscribeRealtime(){
-  sb.channel('appointments-live')
+  if(realtimeChannel) return; // ya suscripto, no crear otro canal
+  realtimeChannel = sb.channel('appointments-live')
     .on('postgres_changes', { event:'*', schema:'public', table:'appointments' }, () => {
       loadAdminAppointments();
     })

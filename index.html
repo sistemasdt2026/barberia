@@ -245,6 +245,30 @@
       <p>Se actualiza sola cuando entra un turno nuevo — no hace falta recargar.</p>
     </div>
     <section>
+      <h2>Cargar turno</h2>
+      <div class="card booking-row">
+        <div class="field">
+          <label>Cliente</label>
+          <select id="admin-client-select"><option value="">Cargando...</option></select>
+        </div>
+        <div class="field">
+          <label>Servicio</label>
+          <select id="admin-service-select"><option value="">Cargando...</option></select>
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" id="admin-booking-date">
+        </div>
+        <div class="field">
+          <label>Hora</label>
+          <input type="time" id="admin-booking-time">
+        </div>
+        <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
+      </div>
+      <div id="admin-booking-msg" class="msg"></div>
+    </section>
+
+    <section>
       <h2>Turnos</h2>
       <div id="admin-appointments"></div>
     </section>
@@ -349,6 +373,7 @@ async function boot(){
   if(currentProfile?.role === 'admin'){
     showView('admin');
     loadAdminAppointments();
+    loadAdminFormOptions();
     subscribeRealtime();
   } else {
     showView('client');
@@ -462,6 +487,39 @@ async function setStatus(id, status){
 }
 
 let realtimeChannel = null;
+
+async function loadAdminFormOptions(){
+  const clientSel = document.getElementById('admin-client-select');
+  const serviceSel = document.getElementById('admin-service-select');
+
+  const { data: clients } = await sb.from('profiles').select('id, full_name').eq('role', 'cliente').order('full_name');
+  clientSel.innerHTML = clients?.length
+    ? clients.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')
+    : '<option value="">No hay clientes registrados</option>';
+
+  const { data: svcs } = await sb.from('services').select('*').eq('active', true).order('price');
+  serviceSel.innerHTML = svcs?.length
+    ? svcs.map(s => `<option value="${s.id}">${s.name} — ${money(s.price)}</option>`).join('')
+    : '<option value="">No hay servicios</option>';
+}
+
+async function adminCreateAppointment(){
+  const client_id = document.getElementById('admin-client-select').value;
+  const service_id = document.getElementById('admin-service-select').value;
+  const date = document.getElementById('admin-booking-date').value;
+  const time = document.getElementById('admin-booking-time').value;
+  const msg = document.getElementById('admin-booking-msg');
+  msg.textContent = '';
+
+  if(!client_id || !service_id || !date || !time){
+    msg.textContent = 'Completá cliente, servicio, fecha y hora.'; msg.className='msg error'; return;
+  }
+  const starts_at = new Date(`${date}T${time}:00`).toISOString();
+  const { error } = await sb.from('appointments').insert({ client_id, service_id, starts_at, status:'confirmado' });
+  if(error){ msg.textContent = error.message; msg.className='msg error'; return; }
+  msg.textContent = 'Turno cargado.'; msg.className='msg ok';
+  loadAdminAppointments();
+}
 
 function subscribeRealtime(){
   if(realtimeChannel) return; // ya suscripto, no crear otro canal

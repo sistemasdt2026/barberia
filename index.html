@@ -156,6 +156,14 @@
   .empty{ color:var(--muted); font-size:14px; padding:20px 0; }
   .hidden{ display:none !important; }
 
+  .calendar-table{ font-size:13px; overflow-x:auto; }
+  .calendar-row{ display:grid; border-bottom:1px solid var(--line); }
+  .calendar-row.calendar-head{ font-weight:600; color:var(--brass); text-transform:uppercase; font-size:10px; letter-spacing:0.05em; border-bottom:1px solid var(--brass); padding-bottom:4px; }
+  .calendar-cell{ padding:7px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .calendar-cell.time-cell{ font-family:'IBM Plex Mono', monospace; color:var(--muted); }
+  .calendar-cell.slot-free{ color:var(--muted); }
+  .calendar-cell.slot-busy{ color:var(--cream); background:rgba(201,162,39,0.1); border-radius:var(--radius); font-weight:600; }
+
   footer{ border-top:1px solid var(--line); padding:24px 32px; color:var(--muted); font-size:12px; text-align:center; }
 
   @media (max-width:600px){
@@ -229,11 +237,11 @@
       <div class="card booking-row">
         <div class="field">
           <label>Fecha</label>
-          <input type="date" id="booking-date">
+          <input type="date" id="booking-date" onchange="refreshClientSlots()">
         </div>
         <div class="field">
           <label>Hora</label>
-          <input type="time" id="booking-time">
+          <select id="booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
         </div>
         <button class="primary" onclick="createAppointment()" id="book-btn" disabled>Confirmar turno</button>
       </div>
@@ -241,7 +249,7 @@
     </section>
 
     <section>
-      <h2>Mis turnos</h2>
+      <h2>Mis turnos de hoy</h2>
       <div id="my-appointments"></div>
     </section>
   </div>
@@ -276,15 +284,15 @@
           </div>
           <div class="field">
             <label>Servicio</label>
-            <select id="admin-service-select"><option value="">Cargando...</option></select>
+            <select id="admin-service-select" onchange="refreshAdminSlots()"><option value="">Cargando...</option></select>
           </div>
           <div class="field">
             <label>Fecha</label>
-            <input type="date" id="admin-booking-date">
+            <input type="date" id="admin-booking-date" onchange="refreshAdminSlots()">
           </div>
           <div class="field">
             <label>Hora</label>
-            <input type="time" id="admin-booking-time">
+            <select id="admin-booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
           </div>
           <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
         </div>
@@ -293,8 +301,19 @@
     </section>
 
     <section>
-      <h2>Turnos</h2>
+      <h2>Turnos de hoy</h2>
       <div id="admin-appointments"></div>
+    </section>
+
+    <section>
+      <h2>Calendario de turnos</h2>
+      <div class="card">
+        <div class="field" style="max-width:220px; margin-bottom:18px;">
+          <label>Ver día</label>
+          <input type="date" id="calendar-date" onchange="loadCalendar()">
+        </div>
+        <div id="calendar-grid"></div>
+      </div>
     </section>
   </div>
 
@@ -316,6 +335,46 @@ let currentUser = null;
 let currentProfile = null;
 let selectedServiceId = null;
 let services = [];
+
+// horario de atención: 10:00 a 20:00, turnos cada 30 min
+const OPEN_HOUR = 10;
+const CLOSE_HOUR = 20;
+const SLOT_MIN = 30;
+
+function generateSlots(){
+  const slots = [];
+  for(let h = OPEN_HOUR; h < CLOSE_HOUR; h++){
+    for(let m = 0; m < 60; m += SLOT_MIN){
+      slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    }
+  }
+  return slots;
+}
+
+function toHHMM(iso){
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function dayRange(date){
+  return { start: new Date(`${date}T00:00:00`).toISOString(), end: new Date(`${date}T23:59:59`).toISOString() };
+}
+
+function todayISO(){
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+
+async function getTakenSlots(serviceId, date){
+  const { start, end } = dayRange(date);
+  const { data } = await sb.from('appointments')
+    .select('starts_at')
+    .eq('service_id', serviceId)
+    .neq('status', 'cancelado')
+    .gte('starts_at', start)
+    .lte('starts_at', end);
+  return (data || []).map(a => toHHMM(a.starts_at));
+}
 
 // ---------- utilidades ----------
 function fmtDateTime(iso){
@@ -400,7 +459,10 @@ async function boot(){
   if(currentProfile?.role === 'admin'){
     showView('admin');
     loadAdminAppointments();
-    loadAdminFormOptions();
+    loadAdminFormOptions().then(() => {
+      document.getElementById('calendar-date').value = todayISO();
+      loadCalendar();
+    });
     subscribeRealtime();
   } else {
     showView('client');
@@ -430,13 +492,31 @@ async function loadServices(){
 function selectService(id){
   selectedServiceId = id;
   services.forEach(s => document.getElementById('svc-'+s.id).classList.toggle('selected', s.id===id));
-  document.getElementById('book-btn').disabled = false;
+  refreshClientSlots();
+}
+
+async function refreshClientSlots(){
+  const sel = document.getElementById('booking-time-select');
+  const date = document.getElementById('booking-date').value;
+  if(!selectedServiceId || !date){
+    sel.innerHTML = '<option value="">Elegí servicio y fecha</option>';
+    sel.disabled = true;
+    document.getElementById('book-btn').disabled = true;
+    return;
+  }
+  const taken = await getTakenSlots(selectedServiceId, date);
+  const free = generateSlots().filter(t => !taken.includes(t));
+  sel.innerHTML = free.length
+    ? free.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">Sin horarios disponibles ese día</option>';
+  sel.disabled = free.length === 0;
+  document.getElementById('book-btn').disabled = free.length === 0;
 }
 
 // ---------- turnos: cliente ----------
 async function createAppointment(){
   const date = document.getElementById('booking-date').value;
-  const time = document.getElementById('booking-time').value;
+  const time = document.getElementById('booking-time-select').value;
   const msg = document.getElementById('booking-msg');
   msg.textContent = '';
   if(!selectedServiceId || !date || !time){
@@ -448,20 +528,29 @@ async function createAppointment(){
     service_id: selectedServiceId,
     starts_at
   });
-  if(error){ msg.textContent = error.message; msg.className='msg error'; return; }
+  if(error){
+    msg.textContent = error.code === '23505' ? 'Ese horario ya se ocupó, elegí otro.' : error.message;
+    msg.className='msg error';
+    refreshClientSlots();
+    return;
+  }
   msg.textContent = 'Turno reservado.'; msg.className='msg ok';
+  refreshClientSlots();
   loadMyAppointments();
 }
 
 async function loadMyAppointments(){
+  const { start, end } = dayRange(todayISO());
   const { data, error } = await sb
     .from('appointments')
     .select('*, services(name, price)')
     .eq('client_id', currentUser.id)
-    .order('starts_at', { ascending:false });
+    .gte('starts_at', start)
+    .lte('starts_at', end)
+    .order('starts_at', { ascending:true });
 
   const box = document.getElementById('my-appointments');
-  if(error || !data?.length){ box.innerHTML = '<div class="empty">Todavía no tenés turnos reservados.</div>'; return; }
+  if(error || !data?.length){ box.innerHTML = '<div class="empty">No tenés turnos para hoy.</div>'; return; }
 
   box.innerHTML = data.map(a => `
     <div class="ticket ${a.status}">
@@ -483,13 +572,16 @@ async function cancelAppointment(id){
 
 // ---------- turnos: admin ----------
 async function loadAdminAppointments(){
+  const { start, end } = dayRange(todayISO());
   const { data, error } = await sb
     .from('appointments')
     .select('*, services(name, price), profiles(nombre, apellido, telefono), clients(nombre, apellido, telefono)')
+    .gte('starts_at', start)
+    .lte('starts_at', end)
     .order('starts_at', { ascending:true });
 
   const box = document.getElementById('admin-appointments');
-  if(error || !data?.length){ box.innerHTML = '<div class="empty">No hay turnos cargados todavía.</div>'; return; }
+  if(error || !data?.length){ box.innerHTML = '<div class="empty">No hay turnos cargados para hoy.</div>'; return; }
 
   box.innerHTML = data.map(a => {
     const c = a.profiles || a.clients;
@@ -552,15 +644,33 @@ async function loadAdminFormOptions(){
   clientSel.innerHTML = options || '<option value="">No hay clientes todavía</option>';
 
   const { data: svcs } = await sb.from('services').select('*').eq('active', true).order('price');
-  serviceSel.innerHTML = svcs?.length
-    ? svcs.map(s => `<option value="${s.id}">${s.name} — ${money(s.price)}</option>`).join('')
+  services = svcs || [];
+  serviceSel.innerHTML = services.length
+    ? services.map(s => `<option value="${s.id}">${s.name} — ${money(s.price)}</option>`).join('')
     : '<option value="">No hay servicios</option>';
+}
+
+async function refreshAdminSlots(){
+  const sel = document.getElementById('admin-booking-time-select');
+  const serviceId = document.getElementById('admin-service-select').value;
+  const date = document.getElementById('admin-booking-date').value;
+  if(!serviceId || !date){
+    sel.innerHTML = '<option value="">Elegí servicio y fecha</option>';
+    sel.disabled = true;
+    return;
+  }
+  const taken = await getTakenSlots(serviceId, date);
+  const free = generateSlots().filter(t => !taken.includes(t));
+  sel.innerHTML = free.length
+    ? free.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">Sin horarios disponibles ese día</option>';
+  sel.disabled = free.length === 0;
 }
 
 async function adminCreateAppointment(){
   const service_id = document.getElementById('admin-service-select').value;
   const date = document.getElementById('admin-booking-date').value;
-  const time = document.getElementById('admin-booking-time').value;
+  const time = document.getElementById('admin-booking-time-select').value;
   const msg = document.getElementById('admin-booking-msg');
   msg.textContent = '';
 
@@ -594,7 +704,12 @@ async function adminCreateAppointment(){
   const { error } = await sb.from('appointments').insert({
     client_id, walk_in_client_id, service_id, starts_at, status:'confirmado'
   });
-  if(error){ msg.textContent = error.message; msg.className='msg error'; return; }
+  if(error){
+    msg.textContent = error.code === '23505' ? 'Ese horario ya se ocupó para ese servicio, elegí otro.' : error.message;
+    msg.className='msg error';
+    refreshAdminSlots();
+    return;
+  }
 
   msg.textContent = 'Turno cargado.'; msg.className='msg ok';
   document.getElementById('new-client-nombre').value = '';
@@ -603,6 +718,8 @@ async function adminCreateAppointment(){
   document.getElementById('new-client-direccion').value = '';
   loadAdminFormOptions();
   loadAdminAppointments();
+  refreshAdminSlots();
+  loadCalendar();
 }
 
 function subscribeRealtime(){
@@ -610,8 +727,50 @@ function subscribeRealtime(){
   realtimeChannel = sb.channel('appointments-live')
     .on('postgres_changes', { event:'*', schema:'public', table:'appointments' }, () => {
       loadAdminAppointments();
+      loadCalendar();
     })
     .subscribe();
+}
+
+async function loadCalendar(){
+  const grid = document.getElementById('calendar-grid');
+  const date = document.getElementById('calendar-date').value;
+  if(!date){ grid.innerHTML = ''; return; }
+  if(!services.length){ return; }
+
+  const { start, end } = dayRange(date);
+  const { data } = await sb
+    .from('appointments')
+    .select('starts_at, service_id, profiles(nombre, apellido), clients(nombre, apellido)')
+    .neq('status', 'cancelado')
+    .gte('starts_at', start)
+    .lte('starts_at', end);
+
+  const lookup = {};
+  (data || []).forEach(a => {
+    const c = a.profiles || a.clients;
+    lookup[`${toHHMM(a.starts_at)}_${a.service_id}`] = c ? `${c.nombre} ${c.apellido}` : 'Ocupado';
+  });
+
+  const cols = `90px repeat(${services.length}, minmax(90px,1fr))`;
+  let html = `<div class="calendar-table"><div class="calendar-row calendar-head" style="grid-template-columns:${cols};">` +
+    '<div class="calendar-cell time-cell"></div>' +
+    services.map(s => `<div class="calendar-cell">${s.name}</div>`).join('') +
+    '</div>';
+
+  generateSlots().forEach(t => {
+    html += `<div class="calendar-row" style="grid-template-columns:${cols};">` +
+      `<div class="calendar-cell time-cell">${t}</div>` +
+      services.map(s => {
+        const occ = lookup[`${t}_${s.id}`];
+        return occ
+          ? `<div class="calendar-cell slot-busy" title="${occ}">${occ}</div>`
+          : `<div class="calendar-cell slot-free">Libre</div>`;
+      }).join('') +
+      '</div>';
+  });
+  html += '</div>';
+  grid.innerHTML = html;
 }
 
 // ---------- init ----------

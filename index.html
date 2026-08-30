@@ -144,6 +144,8 @@
   .ticket .info{ flex:1; min-width:0; }
   .ticket .info .svc{ font-weight:600; }
   .ticket .info .who{ font-size:12px; color:var(--muted); margin:0; }
+  .who.clickable{ cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .who.clickable:hover{ color:var(--brass); }
   .status{
     font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
     padding:4px 8px; border-radius:var(--radius); letter-spacing:0.05em;
@@ -162,7 +164,29 @@
   .calendar-cell{ padding:7px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .calendar-cell.time-cell{ font-family:'IBM Plex Mono', monospace; color:var(--muted); }
   .calendar-cell.slot-free{ color:var(--muted); }
-  .calendar-cell.slot-busy{ color:var(--cream); background:rgba(201,162,39,0.1); border-radius:var(--radius); font-weight:600; }
+  .calendar-cell.slot-busy{ color:var(--cream); background:rgba(201,162,39,0.1); border-radius:var(--radius); font-weight:600; cursor:pointer; }
+  .calendar-cell.slot-busy:hover{ background:rgba(201,162,39,0.22); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.65);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100; padding:20px;
+  }
+  .modal-box{
+    background:var(--bg-alt); border:1px solid var(--line); border-radius:var(--radius);
+    padding:28px; max-width:380px; width:100%; position:relative;
+  }
+  .modal-close{
+    position:absolute; top:10px; right:10px; border:none; background:transparent;
+    color:var(--muted); font-size:22px; line-height:1; padding:6px 10px;
+  }
+  .modal-close:hover{ color:var(--brass); }
+  .modal-box h3{ font-size:26px; margin-bottom:4px; padding-right:24px; }
+  .modal-tag{ color:var(--brass); font-size:12px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:18px; }
+  .modal-row{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .modal-row span{ color:var(--muted); }
+  .modal-row strong{ text-align:right; }
+  .modal-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
 
   footer{ border-top:1px solid var(--line); padding:24px 32px; color:var(--muted); font-size:12px; text-align:center; }
 
@@ -256,68 +280,85 @@
 
   <!-- ============ VISTA: ADMIN ============ -->
   <div id="view-admin" class="hidden">
-    <div class="hero">
-      <div class="eyebrow">Panel del local</div>
-      <h1>Agenda<br>en vivo.</h1>
-      <p>Se actualiza sola cuando entra un turno nuevo — no hace falta recargar.</p>
+
+    <div id="admin-agenda-section">
+      <div class="hero">
+        <div class="eyebrow">Panel del local</div>
+        <h1>Agenda<br>en vivo.</h1>
+        <p>Se actualiza sola cuando entra un turno nuevo — no hace falta recargar.</p>
+      </div>
+      <section>
+        <h2>Cargar turno</h2>
+        <div class="card">
+          <div class="field" style="margin-bottom:16px;">
+            <label>Cliente</label>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="tab-btn active" id="tab-existing" onclick="setClientMode('existing')">Cliente existente</button>
+              <button type="button" class="tab-btn" id="tab-new" onclick="setClientMode('new')">Cliente nuevo</button>
+            </div>
+          </div>
+          <div class="booking-row">
+            <div class="field" id="existing-client-field">
+              <label>Elegir cliente</label>
+              <select id="admin-client-select"><option value="">Cargando...</option></select>
+            </div>
+            <div class="field-group hidden" id="new-client-fields">
+              <div class="field"><label>Nombre</label><input type="text" id="new-client-nombre" placeholder="Juan"></div>
+              <div class="field"><label>Apellido</label><input type="text" id="new-client-apellido" placeholder="Pérez"></div>
+              <div class="field"><label>Teléfono</label><input type="text" id="new-client-telefono" placeholder="11 5555-5555"></div>
+              <div class="field"><label>Dirección (opcional)</label><input type="text" id="new-client-direccion"></div>
+            </div>
+            <div class="field">
+              <label>Servicio</label>
+              <select id="admin-service-select" onchange="refreshAdminSlots()"><option value="">Cargando...</option></select>
+            </div>
+            <div class="field">
+              <label>Fecha</label>
+              <input type="date" id="admin-booking-date" onchange="refreshAdminSlots()">
+            </div>
+            <div class="field">
+              <label>Hora</label>
+              <select id="admin-booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
+            </div>
+            <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
+          </div>
+        </div>
+        <div id="admin-booking-msg" class="msg"></div>
+      </section>
+
+      <section>
+        <h2>Turnos de hoy</h2>
+        <div id="admin-appointments"></div>
+      </section>
     </div>
-    <section>
-      <h2>Cargar turno</h2>
-      <div class="card">
-        <div class="field" style="margin-bottom:16px;">
-          <label>Cliente</label>
-          <div style="display:flex; gap:8px;">
-            <button type="button" class="tab-btn active" id="tab-existing" onclick="setClientMode('existing')">Cliente existente</button>
-            <button type="button" class="tab-btn" id="tab-new" onclick="setClientMode('new')">Cliente nuevo</button>
-          </div>
-        </div>
-        <div class="booking-row">
-          <div class="field" id="existing-client-field">
-            <label>Elegir cliente</label>
-            <select id="admin-client-select"><option value="">Cargando...</option></select>
-          </div>
-          <div class="field-group hidden" id="new-client-fields">
-            <div class="field"><label>Nombre</label><input type="text" id="new-client-nombre" placeholder="Juan"></div>
-            <div class="field"><label>Apellido</label><input type="text" id="new-client-apellido" placeholder="Pérez"></div>
-            <div class="field"><label>Teléfono</label><input type="text" id="new-client-telefono" placeholder="11 5555-5555"></div>
-            <div class="field"><label>Dirección (opcional)</label><input type="text" id="new-client-direccion"></div>
-          </div>
-          <div class="field">
-            <label>Servicio</label>
-            <select id="admin-service-select" onchange="refreshAdminSlots()"><option value="">Cargando...</option></select>
-          </div>
-          <div class="field">
-            <label>Fecha</label>
-            <input type="date" id="admin-booking-date" onchange="refreshAdminSlots()">
-          </div>
-          <div class="field">
-            <label>Hora</label>
-            <select id="admin-booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
-          </div>
-          <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
-        </div>
-      </div>
-      <div id="admin-booking-msg" class="msg"></div>
-    </section>
 
-    <section>
-      <h2>Turnos de hoy</h2>
-      <div id="admin-appointments"></div>
-    </section>
-
-    <section>
-      <h2>Calendario de turnos</h2>
-      <div class="card">
-        <div class="field" style="max-width:220px; margin-bottom:18px;">
-          <label>Ver día</label>
-          <input type="date" id="calendar-date" onchange="loadCalendar()">
-        </div>
-        <div id="calendar-grid"></div>
+    <div id="admin-calendar-section" class="hidden">
+      <div class="hero">
+        <div class="eyebrow">Panel del local</div>
+        <h1>Calendario<br>de turnos.</h1>
+        <p>Elegí un día para ver qué horarios están libres y quién ocupa cada uno.</p>
       </div>
-    </section>
+      <section>
+        <div class="card">
+          <div class="field" style="max-width:220px; margin-bottom:18px;">
+            <label>Ver día</label>
+            <input type="date" id="calendar-date" onchange="loadCalendar()">
+          </div>
+          <div id="calendar-grid"></div>
+        </div>
+      </section>
+    </div>
+
   </div>
 
 </main>
+
+<div id="client-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeClientModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeClientModal()" aria-label="Cerrar">×</button>
+    <div id="client-modal-body"></div>
+  </div>
+</div>
 
 <footer>FILO — demo de portfolio construida con Supabase + HTML/CSS/JS</footer>
 
@@ -335,6 +376,8 @@ let currentUser = null;
 let currentProfile = null;
 let selectedServiceId = null;
 let services = [];
+let adminSubView = 'agenda';
+let adminAppointmentsCache = {};
 
 // horario de atención: 10:00 a 20:00, turnos cada 30 min
 const OPEN_HOUR = 10;
@@ -394,10 +437,23 @@ function showView(name){
 function renderNav(){
   const nav = document.getElementById('nav');
   if(!currentUser){ nav.innerHTML = ''; return; }
+  const isAdmin = currentProfile?.role === 'admin';
   nav.innerHTML = `
+    ${isAdmin ? `
+      <button class="tab-btn ${adminSubView==='agenda' ? 'active' : ''}" onclick="setAdminSubView('agenda')">Agenda</button>
+      <button class="tab-btn ${adminSubView==='calendario' ? 'active' : ''}" onclick="setAdminSubView('calendario')">Calendario</button>
+    ` : ''}
     <span class="who">${currentProfile ? currentProfile.nombre + ' ' + currentProfile.apellido : ''} · ${currentProfile?.role || ''}</span>
     <button onclick="doLogout()">Salir</button>
   `;
+}
+
+function setAdminSubView(view){
+  adminSubView = view;
+  document.getElementById('admin-agenda-section').classList.toggle('hidden', view!=='agenda');
+  document.getElementById('admin-calendar-section').classList.toggle('hidden', view!=='calendario');
+  renderNav();
+  if(view === 'calendario') loadCalendar();
 }
 
 function toggleAuth(){
@@ -575,13 +631,15 @@ async function loadAdminAppointments(){
   const { start, end } = dayRange(todayISO());
   const { data, error } = await sb
     .from('appointments')
-    .select('*, services(name, price), profiles(nombre, apellido, telefono), clients(nombre, apellido, telefono)')
+    .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
     .gte('starts_at', start)
     .lte('starts_at', end)
     .order('starts_at', { ascending:true });
 
   const box = document.getElementById('admin-appointments');
   if(error || !data?.length){ box.innerHTML = '<div class="empty">No hay turnos cargados para hoy.</div>'; return; }
+
+  data.forEach(a => { adminAppointmentsCache[a.id] = a; });
 
   box.innerHTML = data.map(a => {
     const c = a.profiles || a.clients;
@@ -591,7 +649,7 @@ async function loadAdminAppointments(){
       <div class="num">${fmtDateTime(a.starts_at)}</div>
       <div class="info">
         <div class="svc">${a.services?.name || 'Servicio'}</div>
-        <p class="who">${nombre}</p>
+        <p class="who clickable" onclick="openClientModal('${a.id}')">${nombre}</p>
       </div>
       <span class="status ${a.status}">${a.status}</span>
       ${a.status==='pendiente' ? `
@@ -741,15 +799,16 @@ async function loadCalendar(){
   const { start, end } = dayRange(date);
   const { data } = await sb
     .from('appointments')
-    .select('starts_at, service_id, profiles(nombre, apellido), clients(nombre, apellido)')
+    .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
     .neq('status', 'cancelado')
     .gte('starts_at', start)
     .lte('starts_at', end);
 
   const lookup = {};
   (data || []).forEach(a => {
+    adminAppointmentsCache[a.id] = a;
     const c = a.profiles || a.clients;
-    lookup[`${toHHMM(a.starts_at)}_${a.service_id}`] = c ? `${c.nombre} ${c.apellido}` : 'Ocupado';
+    lookup[`${toHHMM(a.starts_at)}_${a.service_id}`] = { id: a.id, nombre: c ? `${c.nombre} ${c.apellido}` : 'Ocupado' };
   });
 
   const cols = `90px repeat(${services.length}, minmax(90px,1fr))`;
@@ -764,13 +823,40 @@ async function loadCalendar(){
       services.map(s => {
         const occ = lookup[`${t}_${s.id}`];
         return occ
-          ? `<div class="calendar-cell slot-busy" title="${occ}">${occ}</div>`
+          ? `<div class="calendar-cell slot-busy" title="${occ.nombre}" onclick="openClientModal('${occ.id}')">${occ.nombre}</div>`
           : `<div class="calendar-cell slot-free">Libre</div>`;
       }).join('') +
       '</div>';
   });
   html += '</div>';
   grid.innerHTML = html;
+}
+
+// ---------- modal de cliente ----------
+function openClientModal(id){
+  const a = adminAppointmentsCache[id];
+  if(!a) return;
+  const c = a.profiles || a.clients;
+  const tipo = a.profiles ? 'Cliente registrado' : 'Cliente sin cuenta';
+  document.getElementById('client-modal-body').innerHTML = `
+    <h3>${c?.nombre || ''} ${c?.apellido || ''}</h3>
+    <p class="modal-tag">${tipo}</p>
+    <div class="modal-row"><span>Teléfono</span><strong>${c?.telefono ? `<a href="tel:${c.telefono}">${c.telefono}</a>` : '—'}</strong></div>
+    <div class="modal-row"><span>Dirección</span><strong>${c?.direccion || '—'}</strong></div>
+    <div class="modal-row"><span>Servicio</span><strong>${a.services?.name || '—'}</strong></div>
+    <div class="modal-row"><span>Horario</span><strong>${fmtDateTime(a.starts_at)}</strong></div>
+    <div class="modal-row"><span>Estado</span><span class="status ${a.status}">${a.status}</span></div>
+    <div class="modal-actions">
+      ${a.status==='pendiente' ? `<button onclick="setStatus('${a.id}','confirmado'); closeClientModal();">Confirmar</button>` : ''}
+      ${(a.status==='pendiente' || a.status==='confirmado') ? `<button class="danger" onclick="setStatus('${a.id}','cancelado'); closeClientModal();">Cancelar turno</button>` : ''}
+      ${a.status==='confirmado' ? `<button onclick="setStatus('${a.id}','completado'); closeClientModal();">Marcar hecho</button>` : ''}
+    </div>
+  `;
+  document.getElementById('client-modal').classList.remove('hidden');
+}
+
+function closeClientModal(){
+  document.getElementById('client-modal').classList.add('hidden');
 }
 
 // ---------- init ----------

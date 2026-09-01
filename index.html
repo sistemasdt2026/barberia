@@ -164,15 +164,22 @@
     text-align:center;
   }
 
-  .wa-float{
+  .floating-social{
     position:fixed; bottom:22px; right:22px; z-index:60;
-    width:58px; height:58px; border-radius:50%;
-    background:var(--whatsapp); display:flex; align-items:center; justify-content:center;
-    box-shadow:0 6px 18px rgba(0,0,0,0.4); text-decoration:none;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  .social-float{
+    width:48px; height:48px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    text-decoration:none; box-shadow:0 6px 16px rgba(0,0,0,0.35);
     transition:transform .15s ease;
   }
-  .wa-float:hover{ transform:scale(1.07); }
-  .wa-float svg{ width:30px; height:30px; }
+  .social-float:hover{ transform:scale(1.08); }
+  .social-float svg{ width:22px; height:22px; }
+  .social-float.wa{ width:58px; height:58px; background:var(--whatsapp); }
+  .social-float.wa svg{ width:28px; height:28px; }
+  .social-float.ig{ background:linear-gradient(45deg,#f58529,#dd2a7b 40%,#8134af 70%,#515bd4); }
+  .social-float.fb{ background:#1877f2; }
 
   @media (max-width:700px){
     nav.main-nav{ display:none; }
@@ -342,9 +349,17 @@
   </div>
 </section>
 
-<a class="wa-float" href="https://wa.me/5491145678900?text=Hola!%20Quiero%20consultar%20por%20un%20turno%20en%20FILO" target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp">
-  <svg viewBox="0 0 24 24" fill="#fff"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.77.46 3.45 1.32 4.94L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.1h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.14.82.84-3.06-.2-.32a8.19 8.19 0 0 1-1.26-4.4c0-4.53 3.69-8.22 8.25-8.22 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.81c0 4.53-3.69 8.22-8.24 8.22zm4.51-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.78.97-.14.17-.29.19-.53.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.23.89 2.41 1.02 2.58.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28z"/></svg>
-</a>
+<div class="floating-social">
+  <a class="social-float fb" href="https://facebook.com/filo.barberia" target="_blank" rel="noopener" aria-label="Facebook">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7H8v-2.9h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.3c-1.2 0-1.6.8-1.6 1.6v1.9H16l-.4 2.9h-2.1v7A10 10 0 0 0 22 12z"/></svg>
+  </a>
+  <a class="social-float ig" href="https://instagram.com/filo.barberia" target="_blank" rel="noopener" aria-label="Instagram">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg>
+  </a>
+  <a class="social-float wa" href="https://wa.me/5491145678900?text=Hola!%20Quiero%20consultar%20por%20un%20turno%20en%20FILO" target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.77.46 3.45 1.32 4.94L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.1h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.14.82.84-3.06-.2-.32a8.19 8.19 0 0 1-1.26-4.4c0-4.53 3.69-8.22 8.25-8.22 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.81c0 4.53-3.69 8.22-8.24 8.22zm4.51-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.78.97-.14.17-.29.19-.53.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.23.89 2.41 1.02 2.58.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28z"/></svg>
+  </a>
+</div>
 
 <footer>FILO — Barbería en Berazategui · demo de portfolio construida con Supabase + HTML/CSS/JS</footer>
 

@@ -3,12 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FILO — Barbería</title>
+<title>FILO Barbería en Berazategui | Turnos Online</title>
 <link rel="icon" type="image/x-icon" href="img/favicon.ico">
-<meta name="description" content="FILO, barbería en Berazategui. Cortes de precisión, barba y color. Reservá tu turno online.">
+<meta name="description" content="Barbería en Berazategui. Cortes de precisión, barba y color. Reservá tu turno online las 24 horas, sin llamadas.">
+<link rel="canonical" href="https://www.barberia-filo.com.ar/">
+<meta name="theme-color" content="#1b1b1a">
+
+<meta property="og:type" content="business.business">
+<meta property="og:title" content="FILO Barbería en Berazategui">
+<meta property="og:description" content="Cortes de precisión, barba y color. Reservá tu turno online las 24 horas, sin llamadas.">
+<meta property="og:url" content="https://www.barberia-filo.com.ar/">
+<meta property="og:image" content="https://www.barberia-filo.com.ar/img/galeria-1.jpg">
+<meta property="og:locale" content="es_AR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FILO Barbería en Berazategui">
+<meta name="twitter:description" content="Cortes de precisión, barba y color. Reservá tu turno online las 24 horas, sin llamadas.">
+<meta name="twitter:image" content="https://www.barberia-filo.com.ar/img/galeria-1.jpg">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HairSalon",
+  "name": "FILO Barbería",
+  "image": "https://www.barberia-filo.com.ar/img/galeria-1.jpg",
+  "url": "https://www.barberia-filo.com.ar/",
+  "telephone": "+54-11-4567-8900",
+  "priceRange": "$$",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "C. 137 2997",
+    "addressLocality": "Berazategui",
+    "addressRegion": "Buenos Aires",
+    "postalCode": "B1884",
+    "addressCountry": "AR"
+  },
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+    "opens": "10:00",
+    "closes": "20:00"
+  },
+  "sameAs": [
+    "https://instagram.com/filo.barberia",
+    "https://facebook.com/filo.barberia"
+  ]
+}
+</script>
 <style>
   :root{
     --bg:#1b1b1a;
@@ -179,6 +223,14 @@
   .social-float svg{ width:22px; height:22px; }
   .social-float.wa{ width:58px; height:58px; background:var(--whatsapp); }
   .social-float.wa svg{ width:28px; height:28px; }
+
+  .skip-link{
+    position:absolute; top:-60px; left:16px; z-index:100;
+    background:var(--brass); color:#1b1b1a; font-weight:600; font-size:14px;
+    padding:10px 16px; border-radius:var(--radius); text-decoration:none;
+    transition:top .15s ease;
+  }
+  .skip-link:focus{ top:16px; }
   .social-float.ig{ background:linear-gradient(45deg,#f58529,#dd2a7b 40%,#8134af 70%,#515bd4); }
   .social-float.fb{ background:#1877f2; }
 
@@ -197,11 +249,13 @@
 </head>
 <body>
 
+<a href="#main" class="skip-link">Saltar al contenido</a>
+
 <div class="stripe"></div>
 
 <header>
   <a href="index.html" class="logo"><img src="img/logo.png" alt="FILO Barbería" class="logo-img"></a>
-  <nav class="main-nav">
+  <nav class="main-nav" aria-label="Principal">
     <a href="#nosotros">Nosotros</a>
     <a href="#servicios">Servicios</a>
     <a href="#galeria">Galería</a>
@@ -210,6 +264,8 @@
     <a href="app.html" class="btn">Reservar turno</a>
   </nav>
 </header>
+
+<main id="main">
 
 <div class="hero">
   <div class="hero-inner">
@@ -296,6 +352,7 @@
   <h2 class="section-title">Ubicación.</h2>
   <div class="map-wrap">
     <iframe
+      title="Mapa de ubicación de FILO Barbería"
       src="https://www.google.com/maps?q=C.+137+2997,+B1884+Berazategui,+Provincia+de+Buenos+Aires,+Argentina&output=embed"
       loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
   </div>
@@ -315,19 +372,19 @@
     <div>
       <form id="contact-form" action="https://formspree.io/f/TU_ID_DE_FORMULARIO" method="POST" onsubmit="return sendContactForm(event)">
         <div class="field">
-          <label>Nombre</label>
+          <label for="cf-name">Nombre</label>
           <input type="text" name="name" id="cf-name" required>
         </div>
         <div class="field">
-          <label>Email</label>
+          <label for="cf-email">Email</label>
           <input type="email" name="email" id="cf-email" required>
         </div>
         <div class="field">
-          <label>Mensaje</label>
+          <label for="cf-message">Mensaje</label>
           <textarea name="message" id="cf-message" rows="4" required></textarea>
         </div>
         <button class="btn" type="submit" style="width:100%;">Enviar mensaje</button>
-        <div id="cf-msg" class="msg"></div>
+        <div id="cf-msg" class="msg" role="status" aria-live="polite"></div>
       </form>
     </div>
     <div class="contact-info">
@@ -361,6 +418,8 @@
     <svg viewBox="0 0 24 24" fill="#fff"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.77.46 3.45 1.32 4.94L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.1h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.14.82.84-3.06-.2-.32a8.19 8.19 0 0 1-1.26-4.4c0-4.53 3.69-8.22 8.25-8.22 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.81c0 4.53-3.69 8.22-8.24 8.22zm4.51-6.16c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.78.97-.14.17-.29.19-.53.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.23.89 2.41 1.02 2.58.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.14-1.18-.06-.1-.23-.16-.48-.28z"/></svg>
   </a>
 </div>
+
+</main>
 
 <footer>FILO — Barbería en Berazategui · demo de portfolio construida con Supabase + HTML/CSS/JS</footer>
 

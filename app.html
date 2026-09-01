@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FILO — Turnos de barbería</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/x-icon" href="img/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -100,6 +101,8 @@
   .auth-box{ max-width:380px; }
   .field{ margin-bottom:14px; }
   .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+  .field-group-label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+  .tab-btn[aria-pressed="true"]{ border-color:var(--brass); color:var(--brass); }
   .field input, .field select{
     width:100%;
     background:var(--bg);
@@ -210,13 +213,15 @@
 </head>
 <body>
 
+<a href="#main" class="skip-link">Saltar al contenido</a>
+
 <div class="stripe"></div>
 <header>
   <div class="logo"><img src="img/logo.png" alt="FILO Barbería" class="logo-img"> <a href="index.html" class="back-link">‹ Sitio</a></div>
-  <nav id="nav"></nav>
+  <nav id="nav" aria-label="Principal"></nav>
 </header>
 
-<main>
+<main id="main">
 
   <!-- ============ VISTA: LOGIN / REGISTRO ============ -->
   <div id="view-auth" class="hidden">
@@ -228,25 +233,25 @@
     <div class="card auth-box">
       <div id="login-form">
         <h3 style="margin-bottom:16px;">Iniciar sesión</h3>
-        <div class="field"><label>Email</label><input type="email" id="login-email" autocomplete="email"></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="login-pass" autocomplete="current-password"></div>
+        <div class="field"><label for="login-email">Email</label><input type="email" id="login-email" autocomplete="email"></div>
+        <div class="field"><label for="login-pass">Contraseña</label><input type="password" id="login-pass" autocomplete="current-password"></div>
         <button class="primary" onclick="doLogin()" style="width:100%;">Entrar</button>
-        <div class="toggle-auth">¿No tenés cuenta? <a onclick="toggleAuth()">Registrate</a></div>
-        <div id="login-msg" class="msg"></div>
+        <div class="toggle-auth">¿No tenés cuenta? <a href="#" onclick="toggleAuth(); return false;">Registrate</a></div>
+        <div id="login-msg" class="msg" role="status" aria-live="polite"></div>
       </div>
       <div id="register-form" class="hidden">
         <h3 style="margin-bottom:16px;">Crear cuenta</h3>
         <div class="field-group" style="margin-bottom:14px;">
-          <div class="field"><label>Nombre</label><input type="text" id="reg-nombre"></div>
-          <div class="field"><label>Apellido</label><input type="text" id="reg-apellido"></div>
+          <div class="field"><label for="reg-nombre">Nombre</label><input type="text" id="reg-nombre"></div>
+          <div class="field"><label for="reg-apellido">Apellido</label><input type="text" id="reg-apellido"></div>
         </div>
-        <div class="field"><label>Teléfono</label><input type="text" id="reg-telefono"></div>
-        <div class="field"><label>Dirección (opcional)</label><input type="text" id="reg-direccion"></div>
-        <div class="field"><label>Email</label><input type="email" id="reg-email"></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="reg-pass"></div>
+        <div class="field"><label for="reg-telefono">Teléfono</label><input type="text" id="reg-telefono"></div>
+        <div class="field"><label for="reg-direccion">Dirección (opcional)</label><input type="text" id="reg-direccion"></div>
+        <div class="field"><label for="reg-email">Email</label><input type="email" id="reg-email"></div>
+        <div class="field"><label for="reg-pass">Contraseña</label><input type="password" id="reg-pass"></div>
         <button class="primary" onclick="doRegister()" style="width:100%;">Crear cuenta</button>
-        <div class="toggle-auth">¿Ya tenés cuenta? <a onclick="toggleAuth()">Iniciar sesión</a></div>
-        <div id="register-msg" class="msg"></div>
+        <div class="toggle-auth">¿Ya tenés cuenta? <a href="#" onclick="toggleAuth(); return false;">Iniciar sesión</a></div>
+        <div id="register-msg" class="msg" role="status" aria-live="polite"></div>
       </div>
     </div>
   </div>
@@ -267,16 +272,16 @@
       <h2>2 · Elegí fecha y hora</h2>
       <div class="card booking-row">
         <div class="field">
-          <label>Fecha</label>
+          <label for="booking-date">Fecha</label>
           <input type="date" id="booking-date" onchange="refreshClientSlots()">
         </div>
         <div class="field">
-          <label>Hora</label>
+          <label for="booking-time-select">Hora</label>
           <select id="booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
         </div>
         <button class="primary" onclick="createAppointment()" id="book-btn" disabled>Confirmar turno</button>
       </div>
-      <div id="booking-msg" class="msg"></div>
+      <div id="booking-msg" class="msg" role="status" aria-live="polite"></div>
     </section>
 
     <section>
@@ -298,39 +303,39 @@
         <h2>Cargar turno</h2>
         <div class="card">
           <div class="field" style="margin-bottom:16px;">
-            <label>Cliente</label>
-            <div style="display:flex; gap:8px;">
-              <button type="button" class="tab-btn active" id="tab-existing" onclick="setClientMode('existing')">Cliente existente</button>
-              <button type="button" class="tab-btn" id="tab-new" onclick="setClientMode('new')">Cliente nuevo</button>
+            <span class="field-group-label">Cliente</span>
+            <div style="display:flex; gap:8px;" role="group" aria-label="Tipo de cliente">
+              <button type="button" class="tab-btn active" id="tab-existing" onclick="setClientMode('existing')" aria-pressed="true">Cliente existente</button>
+              <button type="button" class="tab-btn" id="tab-new" onclick="setClientMode('new')" aria-pressed="false">Cliente nuevo</button>
             </div>
           </div>
           <div class="booking-row">
             <div class="field" id="existing-client-field">
-              <label>Elegir cliente</label>
+              <label for="admin-client-select">Elegir cliente</label>
               <select id="admin-client-select"><option value="">Cargando...</option></select>
             </div>
             <div class="field-group hidden" id="new-client-fields">
-              <div class="field"><label>Nombre</label><input type="text" id="new-client-nombre" placeholder="Juan"></div>
-              <div class="field"><label>Apellido</label><input type="text" id="new-client-apellido" placeholder="Pérez"></div>
-              <div class="field"><label>Teléfono</label><input type="text" id="new-client-telefono" placeholder="11 5555-5555"></div>
-              <div class="field"><label>Dirección (opcional)</label><input type="text" id="new-client-direccion"></div>
+              <div class="field"><label for="new-client-nombre">Nombre</label><input type="text" id="new-client-nombre" placeholder="Juan"></div>
+              <div class="field"><label for="new-client-apellido">Apellido</label><input type="text" id="new-client-apellido" placeholder="Pérez"></div>
+              <div class="field"><label for="new-client-telefono">Teléfono</label><input type="text" id="new-client-telefono" placeholder="11 5555-5555"></div>
+              <div class="field"><label for="new-client-direccion">Dirección (opcional)</label><input type="text" id="new-client-direccion"></div>
             </div>
             <div class="field">
-              <label>Servicio</label>
+              <label for="admin-service-select">Servicio</label>
               <select id="admin-service-select" onchange="refreshAdminSlots()"><option value="">Cargando...</option></select>
             </div>
             <div class="field">
-              <label>Fecha</label>
+              <label for="admin-booking-date">Fecha</label>
               <input type="date" id="admin-booking-date" onchange="refreshAdminSlots()">
             </div>
             <div class="field">
-              <label>Hora</label>
+              <label for="admin-booking-time-select">Hora</label>
               <select id="admin-booking-time-select" disabled><option value="">Elegí servicio y fecha</option></select>
             </div>
             <button class="primary" onclick="adminCreateAppointment()">Cargar turno</button>
           </div>
         </div>
-        <div id="admin-booking-msg" class="msg"></div>
+        <div id="admin-booking-msg" class="msg" role="status" aria-live="polite"></div>
       </section>
 
       <section>
@@ -348,7 +353,7 @@
       <section>
         <div class="card">
           <div class="field" style="max-width:220px; margin-bottom:18px;">
-            <label>Ver día</label>
+            <label for="calendar-date">Ver día</label>
             <input type="date" id="calendar-date" onchange="loadCalendar()">
           </div>
           <div id="calendar-grid"></div>
@@ -366,20 +371,20 @@
         <h2>Nuevo servicio</h2>
         <div class="card booking-row">
           <div class="field">
-            <label>Nombre</label>
+            <label for="new-service-name">Nombre</label>
             <input type="text" id="new-service-name" placeholder="Corte clásico">
           </div>
           <div class="field">
-            <label>Duración (min)</label>
+            <label for="new-service-duration">Duración (min)</label>
             <input type="number" id="new-service-duration" value="30" min="5" step="5">
           </div>
           <div class="field">
-            <label>Precio</label>
+            <label for="new-service-price">Precio</label>
             <input type="number" id="new-service-price" min="0" step="100" placeholder="6500">
           </div>
           <button class="primary" onclick="createService()">Agregar servicio</button>
         </div>
-        <div id="new-service-msg" class="msg"></div>
+        <div id="new-service-msg" class="msg" role="status" aria-live="polite"></div>
       </section>
 
       <section>
@@ -392,14 +397,14 @@
 
 </main>
 
-<div id="client-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeClientModal()">
+<div id="client-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeClientModal()" role="dialog" aria-modal="true" aria-label="Información del cliente">
   <div class="modal-box">
     <button class="modal-close" onclick="closeClientModal()" aria-label="Cerrar">×</button>
     <div id="client-modal-body"></div>
   </div>
 </div>
 
-<div id="app-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeAppModal()">
+<div id="app-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeAppModal()" role="dialog" aria-modal="true" aria-labelledby="app-modal-title">
   <div class="modal-box">
     <button class="modal-close" onclick="closeAppModal()" aria-label="Cerrar">×</button>
     <h3 id="app-modal-title" style="margin-bottom:12px;"></h3>
@@ -734,7 +739,9 @@ let clientMode = 'existing';
 function setClientMode(mode){
   clientMode = mode;
   document.getElementById('tab-existing').classList.toggle('active', mode==='existing');
+  document.getElementById('tab-existing').setAttribute('aria-pressed', mode==='existing');
   document.getElementById('tab-new').classList.toggle('active', mode==='new');
+  document.getElementById('tab-new').setAttribute('aria-pressed', mode==='new');
   document.getElementById('existing-client-field').classList.toggle('hidden', mode!=='existing');
   document.getElementById('new-client-fields').classList.toggle('hidden', mode!=='new');
 }
@@ -778,19 +785,19 @@ async function loadServicesManage(){
     <div class="card" style="margin-bottom:12px;">
       <div class="booking-row">
         <div class="field">
-          <label>Nombre</label>
+          <label for="svc-name-${s.id}">Nombre</label>
           <input type="text" id="svc-name-${s.id}" value="${s.name}">
         </div>
         <div class="field">
-          <label>Duración (min)</label>
+          <label for="svc-duration-${s.id}">Duración (min)</label>
           <input type="number" id="svc-duration-${s.id}" value="${s.duration_min}" min="5" step="5">
         </div>
         <div class="field">
-          <label>Precio</label>
+          <label for="svc-price-${s.id}">Precio</label>
           <input type="number" id="svc-price-${s.id}" value="${s.price}" min="0" step="100">
         </div>
         <div class="field" style="max-width:130px;">
-          <label>Estado</label>
+          <label for="svc-active-${s.id}">Estado</label>
           <select id="svc-active-${s.id}">
             <option value="true" ${s.active ? 'selected' : ''}>Activo</option>
             <option value="false" ${!s.active ? 'selected' : ''}>Inactivo</option>
@@ -798,7 +805,7 @@ async function loadServicesManage(){
         </div>
         <button class="primary" onclick="saveService('${s.id}')">Guardar</button>
       </div>
-      <div id="svc-msg-${s.id}" class="msg"></div>
+      <div id="svc-msg-${s.id}" class="msg" role="status" aria-live="polite"></div>
     </div>
   `).join('');
 }
@@ -991,19 +998,19 @@ function openClientModal(id){
     <div class="modal-row"><span>Estado</span><span class="status ${a.status}">${a.status}</span></div>
 
     ${canEdit ? `
-      <label style="display:block; font-size:12px; color:var(--muted); margin:18px 0 8px; text-transform:uppercase; letter-spacing:0.05em;">Reprogramar</label>
+      <p id="reschedule-heading" style="font-size:12px; color:var(--muted); margin:18px 0 8px; text-transform:uppercase; letter-spacing:0.05em;">Reprogramar</p>
       <div class="field-group" style="margin-bottom:0;">
         <div class="field">
-          <label>Fecha</label>
+          <label for="modal-reschedule-date">Fecha</label>
           <input type="date" id="modal-reschedule-date" onchange="refreshModalSlots('${a.id}')">
         </div>
         <div class="field">
-          <label>Hora</label>
+          <label for="modal-reschedule-time">Hora</label>
           <select id="modal-reschedule-time"><option value="">Elegí fecha</option></select>
         </div>
       </div>
       <button class="primary" style="width:100%; margin-top:10px;" onclick="saveReschedule('${a.id}')">Guardar cambios</button>
-      <div id="modal-reschedule-msg" class="msg"></div>
+      <div id="modal-reschedule-msg" class="msg" role="status" aria-live="polite"></div>
     ` : ''}
 
     <div class="modal-actions">

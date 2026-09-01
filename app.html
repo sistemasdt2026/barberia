@@ -399,6 +399,15 @@
   </div>
 </div>
 
+<div id="app-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeAppModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeAppModal()" aria-label="Cerrar">×</button>
+    <h3 id="app-modal-title" style="margin-bottom:12px;"></h3>
+    <p id="app-modal-message" style="color:var(--muted); font-size:14px; line-height:1.5;"></p>
+    <div class="modal-actions" id="app-modal-actions"></div>
+  </div>
+</div>
+
 <footer>FILO — demo de portfolio construida con Supabase + HTML/CSS/JS</footer>
 
 <script>
@@ -1051,22 +1060,54 @@ function closeClientModal(){
   document.getElementById('client-modal').classList.add('hidden');
 }
 
+// ---------- modal genérico de confirmación / aviso ----------
+function showConfirm(message, onConfirm, title){
+  document.getElementById('app-modal-title').textContent = title || 'Confirmar';
+  document.getElementById('app-modal-message').textContent = message;
+  document.getElementById('app-modal-actions').innerHTML = `
+    <button onclick="closeAppModal()">Cancelar</button>
+    <button class="primary" id="app-modal-confirm-btn">Confirmar</button>
+  `;
+  document.getElementById('app-modal-confirm-btn').onclick = () => { closeAppModal(); onConfirm(); };
+  document.getElementById('app-modal').classList.remove('hidden');
+}
+
+function showAlert(message, title){
+  document.getElementById('app-modal-title').textContent = title || 'Aviso';
+  document.getElementById('app-modal-message').textContent = message;
+  document.getElementById('app-modal-actions').innerHTML = `<button class="primary" onclick="closeAppModal()">Entendido</button>`;
+  document.getElementById('app-modal').classList.remove('hidden');
+}
+
+function closeAppModal(){
+  document.getElementById('app-modal').classList.add('hidden');
+}
+
 // ---------- bloqueo de horarios ----------
 async function blockSlot(serviceId, date, time){
   const svc = services.find(s => s.id === serviceId);
-  if(!confirm(`¿Bloquear ${svc ? svc.name : 'el servicio'} a las ${time} del ${date}?\nDeja de aparecer disponible para reservar.`)) return;
-
-  const starts_at = new Date(`${date}T${time}:00`).toISOString();
-  const { error } = await sb.from('blocked_slots').insert({ service_id: serviceId, starts_at });
-  if(error){ alert('No se pudo bloquear: ' + error.message); return; }
-  loadCalendar();
+  showConfirm(
+    `¿Bloquear ${svc ? svc.name : 'el servicio'} a las ${time} del ${date}? Deja de aparecer disponible para reservar.`,
+    async () => {
+      const starts_at = new Date(`${date}T${time}:00`).toISOString();
+      const { error } = await sb.from('blocked_slots').insert({ service_id: serviceId, starts_at });
+      if(error){ showAlert('No se pudo bloquear: ' + error.message, 'Error'); return; }
+      loadCalendar();
+    },
+    'Bloquear horario'
+  );
 }
 
 async function unblockSlot(id){
-  if(!confirm('¿Habilitar de nuevo este horario?')) return;
-  const { error } = await sb.from('blocked_slots').delete().eq('id', id);
-  if(error){ alert('No se pudo habilitar: ' + error.message); return; }
-  loadCalendar();
+  showConfirm(
+    '¿Habilitar de nuevo este horario?',
+    async () => {
+      const { error } = await sb.from('blocked_slots').delete().eq('id', id);
+      if(error){ showAlert('No se pudo habilitar: ' + error.message, 'Error'); return; }
+      loadCalendar();
+    },
+    'Habilitar horario'
+  );
 }
 
 // ---------- init ----------

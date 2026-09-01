@@ -165,9 +165,12 @@
   .calendar-row.calendar-head{ font-weight:600; color:var(--brass); text-transform:uppercase; font-size:10px; letter-spacing:0.05em; border-bottom:1px solid var(--brass); padding-bottom:4px; }
   .calendar-cell{ padding:7px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .calendar-cell.time-cell{ font-family:'IBM Plex Mono', monospace; color:var(--muted); }
-  .calendar-cell.slot-free{ color:var(--muted); }
+  .calendar-cell.slot-free{ color:var(--muted); cursor:pointer; }
+  .calendar-cell.slot-free:hover{ background:rgba(237,230,214,0.06); }
   .calendar-cell.slot-busy{ color:var(--cream); background:rgba(201,162,39,0.1); border-radius:var(--radius); font-weight:600; cursor:pointer; }
   .calendar-cell.slot-busy:hover{ background:rgba(201,162,39,0.22); }
+  .calendar-cell.slot-blocked{ color:var(--red); background:rgba(140,47,47,0.12); border-radius:var(--radius); cursor:pointer; text-decoration:line-through; }
+  .calendar-cell.slot-blocked:hover{ background:rgba(140,47,47,0.22); }
 
   .modal-overlay{
     position:fixed; inset:0; background:rgba(0,0,0,0.65);
@@ -449,13 +452,17 @@ function toLocalDateStr(iso){
 
 async function getTakenSlots(serviceId, date, excludeId){
   const { start, end } = dayRange(date);
-  const { data } = await sb.from('appointments')
-    .select('id, starts_at')
-    .eq('service_id', serviceId)
-    .neq('status', 'cancelado')
-    .gte('starts_at', start)
-    .lte('starts_at', end);
-  return (data || []).filter(a => a.id !== excludeId).map(a => toHHMM(a.starts_at));
+  const [{ data: appts }, { data: blocks }] = await Promise.all([
+    sb.from('appointments').select('id, starts_at')
+      .eq('service_id', serviceId).neq('status', 'cancelado')
+      .gte('starts_at', start).lte('starts_at', end),
+    sb.from('blocked_slots').select('starts_at')
+      .eq('service_id', serviceId)
+      .gte('starts_at', start).lte('starts_at', end)
+  ]);
+  const apptTimes = (appts || []).filter(a => a.id !== excludeId).map(a => toHHMM(a.starts_at));
+  const blockTimes = (blocks || []).map(b => toHHMM(b.starts_at));
+  return Array.from(new Set([...apptTimes, ...blockTimes]));
 }
 
 // ---------- utilidades ----------
@@ -912,18 +919,25 @@ async function loadCalendar(){
   if(!services.length){ return; }
 
   const { start, end } = dayRange(date);
-  const { data } = await sb
-    .from('appointments')
-    .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
-    .neq('status', 'cancelado')
-    .gte('starts_at', start)
-    .lte('starts_at', end);
+  const [{ data: appts }, { data: blocks }] = await Promise.all([
+    sb.from('appointments')
+      .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
+      .neq('status', 'cancelado')
+      .gte('starts_at', start).lte('starts_at', end),
+    sb.from('blocked_slots').select('*')
+      .gte('starts_at', start).lte('starts_at', end)
+  ]);
 
-  const lookup = {};
-  (data || []).forEach(a => {
+  const apptLookup = {};
+  (appts || []).forEach(a => {
     adminAppointmentsCache[a.id] = a;
     const c = a.profiles || a.clients;
-    lookup[`${toHHMM(a.starts_at)}_${a.service_id}`] = { id: a.id, nombre: c ? `${c.nombre} ${c.apellido}` : 'Ocupado' };
+    apptLookup[`${toHHMM(a.starts_at)}_${a.service_id}`] = { id: a.id, nombre: c ? `${c.nombre} ${c.apellido}` : 'Ocupado' };
+  });
+
+  const blockLookup = {};
+  (blocks || []).forEach(b => {
+    blockLookup[`${toHHMM(b.starts_at)}_${b.service_id}`] = b.id;
   });
 
   const cols = `90px repeat(${services.length}, minmax(90px,1fr))`;
@@ -936,10 +950,11 @@ async function loadCalendar(){
     html += `<div class="calendar-row" style="grid-template-columns:${cols};">` +
       `<div class="calendar-cell time-cell">${t}</div>` +
       services.map(s => {
-        const occ = lookup[`${t}_${s.id}`];
-        return occ
-          ? `<div class="calendar-cell slot-busy" title="${occ.nombre}" onclick="openClientModal('${occ.id}')">${occ.nombre}</div>`
-          : `<div class="calendar-cell slot-free">Libre</div>`;
+        const occ = apptLookup[`${t}_${s.id}`];
+        if(occ) return `<div class="calendar-cell slot-busy" title="${occ.nombre}" onclick="openClientModal('${occ.id}')">${occ.nombre}</div>`;
+        const blockId = blockLookup[`${t}_${s.id}`];
+        if(blockId) return `<div class="calendar-cell slot-blocked" title="Click para habilitar de nuevo" onclick="unblockSlot('${blockId}')">No disponible</div>`;
+        return `<div class="calendar-cell slot-free" title="Click para bloquear este horario" onclick="blockSlot('${s.id}','${date}','${t}')">Libre</div>`;
       }).join('') +
       '</div>';
   });
@@ -1032,6 +1047,24 @@ async function saveReschedule(id){
 
 function closeClientModal(){
   document.getElementById('client-modal').classList.add('hidden');
+}
+
+// ---------- bloqueo de horarios ----------
+async function blockSlot(serviceId, date, time){
+  const svc = services.find(s => s.id === serviceId);
+  if(!confirm(`¿Bloquear ${svc ? svc.name : 'el servicio'} a las ${time} del ${date}?\nDeja de aparecer disponible para reservar.`)) return;
+
+  const starts_at = new Date(`${date}T${time}:00`).toISOString();
+  const { error } = await sb.from('blocked_slots').insert({ service_id: serviceId, starts_at });
+  if(error){ alert('No se pudo bloquear: ' + error.message); return; }
+  loadCalendar();
+}
+
+async function unblockSlot(id){
+  if(!confirm('¿Habilitar de nuevo este horario?')) return;
+  const { error } = await sb.from('blocked_slots').delete().eq('id', id);
+  if(error){ alert('No se pudo habilitar: ' + error.message); return; }
+  loadCalendar();
 }
 
 // ---------- init ----------

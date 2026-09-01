@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FILO — Barbería</title>
-<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="icon" type="image/x-icon" href="img/favicon.ico">
 <meta name="description" content="FILO, barbería en Berazategui. Cortes de precisión, barba y color. Reservá tu turno online.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -60,6 +60,7 @@
   }
   .logo{ font-size:26px; letter-spacing:0.08em; }
   .logo span{ color:var(--brass); }
+  .logo-img{ height:42px; width:auto; display:block; }
   nav.main-nav{ display:flex; align-items:center; gap:26px; }
   nav.main-nav a{
     font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted);
@@ -191,7 +192,7 @@
 <div class="stripe"></div>
 
 <header>
-  <div class="logo">FIL<span>O</span></div>
+  <a href="index.html" class="logo"><img src="img/logo.png" alt="FILO Barbería" class="logo-img"></a>
   <nav class="main-nav">
     <a href="#nosotros">Nosotros</a>
     <a href="#servicios">Servicios</a>
@@ -212,7 +213,7 @@
       <a href="#servicios" class="btn ghost">Ver servicios</a>
     </div>
   </div>
-  <img class="hero-deco" src="img/logo.png" alt="Logo FILO" loading="eager">
+  <img class="hero-deco" src="img/logo2.png" alt="Logo FILO" loading="eager">
 </div>
 
 <section id="nosotros">

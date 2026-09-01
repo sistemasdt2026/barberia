@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root{
     --bg:#1b1b1a;
@@ -176,6 +177,7 @@
   .calendar-cell.slot-busy:hover{ background:rgba(201,162,39,0.22); }
   .calendar-cell.slot-blocked{ color:var(--red); background:rgba(140,47,47,0.12); border-radius:var(--radius); cursor:pointer; text-decoration:line-through; }
   .calendar-cell.slot-blocked:hover{ background:rgba(140,47,47,0.22); }
+  .calendar-cell.slot-na{ color:var(--line); }
 
   .modal-overlay{
     position:fixed; inset:0; background:rgba(0,0,0,0.65);
@@ -393,6 +395,36 @@
       </section>
     </div>
 
+    <div id="admin-stats-section" class="hidden">
+      <div class="hero">
+        <div class="eyebrow">Panel del local</div>
+        <h1>Estadísticas.</h1>
+        <p>Ventas del día por servicio, clientes frecuentes y cupones de fidelidad.</p>
+      </div>
+
+      <section>
+        <div class="field" style="max-width:220px; margin-bottom:18px;">
+          <label for="stats-date">Ver ventas del día</label>
+          <input type="date" id="stats-date" onchange="loadStats()">
+        </div>
+        <div class="card">
+          <div id="stats-summary"></div>
+          <canvas id="stats-chart" height="220" style="margin-top:20px;"></canvas>
+        </div>
+      </section>
+
+      <section>
+        <h2>Clientes frecuentes</h2>
+        <p style="color:var(--muted); font-size:13px; margin-top:-14px; margin-bottom:16px;">Cada 10 servicios completados, el cliente recibe un cupón de 20% automático.</p>
+        <div id="stats-frequent"></div>
+      </section>
+
+      <section>
+        <h2>Cupones de fidelidad</h2>
+        <div id="stats-coupons"></div>
+      </section>
+    </div>
+
   </div>
 
 </main>
@@ -435,16 +467,23 @@ let adminAppointmentsCache = {};
 // horario de atención: 10:00 a 20:00, turnos cada 30 min
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
-const SLOT_MIN = 30;
 
-function generateSlots(){
+function generateSlots(durationMin){
+  const step = durationMin && durationMin > 0 ? durationMin : 30;
   const slots = [];
-  for(let h = OPEN_HOUR; h < CLOSE_HOUR; h++){
-    for(let m = 0; m < 60; m += SLOT_MIN){
-      slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
-    }
+  let totalMin = OPEN_HOUR * 60;
+  const closeMin = CLOSE_HOUR * 60;
+  while(totalMin + step <= closeMin){
+    const h = Math.floor(totalMin / 60), m = totalMin % 60;
+    slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    totalMin += step;
   }
   return slots;
+}
+
+function serviceDuration(serviceId){
+  const s = services.find(s => s.id === serviceId);
+  return s ? s.duration_min : 30;
 }
 
 function toHHMM(iso){
@@ -505,6 +544,7 @@ function renderNav(){
       <button class="tab-btn ${adminSubView==='agenda' ? 'active' : ''}" onclick="setAdminSubView('agenda')">Agenda</button>
       <button class="tab-btn ${adminSubView==='calendario' ? 'active' : ''}" onclick="setAdminSubView('calendario')">Calendario</button>
       <button class="tab-btn ${adminSubView==='servicios' ? 'active' : ''}" onclick="setAdminSubView('servicios')">Servicios</button>
+      <button class="tab-btn ${adminSubView==='estadisticas' ? 'active' : ''}" onclick="setAdminSubView('estadisticas')">Estadísticas</button>
     ` : ''}
     <span class="who">${currentProfile ? currentProfile.nombre + ' ' + currentProfile.apellido : ''} · ${currentProfile?.role || ''}</span>
     <button onclick="doLogout()">Salir</button>
@@ -516,9 +556,11 @@ function setAdminSubView(view){
   document.getElementById('admin-agenda-section').classList.toggle('hidden', view!=='agenda');
   document.getElementById('admin-calendar-section').classList.toggle('hidden', view!=='calendario');
   document.getElementById('admin-services-section').classList.toggle('hidden', view!=='servicios');
+  document.getElementById('admin-stats-section').classList.toggle('hidden', view!=='estadisticas');
   renderNav();
   if(view === 'calendario') loadCalendar();
   if(view === 'servicios') loadServicesManage();
+  if(view === 'estadisticas') loadStatsSection();
 }
 
 function toggleAuth(){
@@ -626,7 +668,7 @@ async function refreshClientSlots(){
     return;
   }
   const taken = await getTakenSlots(selectedServiceId, date);
-  const free = generateSlots().filter(t => !taken.includes(t));
+  const free = generateSlots(serviceDuration(selectedServiceId)).filter(t => !taken.includes(t));
   sel.innerHTML = free.length
     ? free.map(t => `<option value="${t}">${t}</option>`).join('')
     : '<option value="">Sin horarios disponibles ese día</option>';
@@ -644,10 +686,12 @@ async function createAppointment(){
     msg.textContent = 'Elegí servicio, fecha y hora.'; msg.className='msg error'; return;
   }
   const starts_at = new Date(`${date}T${time}:00`).toISOString();
+  const svc = services.find(s => s.id === selectedServiceId);
   const { error } = await sb.from('appointments').insert({
     client_id: currentUser.id,
     service_id: selectedServiceId,
-    starts_at
+    starts_at,
+    price: svc ? svc.price : null
   });
   if(error){
     msg.textContent = error.code === '23505' ? 'Ese horario ya se ocupó, elegí otro.' : error.message;
@@ -696,7 +740,7 @@ async function loadAdminAppointments(){
   const { start, end } = dayRange(todayISO());
   const { data, error } = await sb
     .from('appointments')
-    .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
+    .select('*, services(name, price, duration_min), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
     .gte('starts_at', start)
     .lte('starts_at', end)
     .order('starts_at', { ascending:true });
@@ -858,7 +902,7 @@ async function refreshAdminSlots(){
     return;
   }
   const taken = await getTakenSlots(serviceId, date);
-  const free = generateSlots().filter(t => !taken.includes(t));
+  const free = generateSlots(serviceDuration(serviceId)).filter(t => !taken.includes(t));
   sel.innerHTML = free.length
     ? free.map(t => `<option value="${t}">${t}</option>`).join('')
     : '<option value="">Sin horarios disponibles ese día</option>';
@@ -899,8 +943,9 @@ async function adminCreateAppointment(){
   }
 
   const starts_at = new Date(`${date}T${time}:00`).toISOString();
+  const svc = services.find(s => s.id === service_id);
   const { error } = await sb.from('appointments').insert({
-    client_id, walk_in_client_id, service_id, starts_at, status:'confirmado'
+    client_id, walk_in_client_id, service_id, starts_at, status:'confirmado', price: svc ? svc.price : null
   });
   if(error){
     msg.textContent = error.code === '23505' ? 'Ese horario ya se ocupó para ese servicio, elegí otro.' : error.message;
@@ -939,7 +984,7 @@ async function loadCalendar(){
   const { start, end } = dayRange(date);
   const [{ data: appts }, { data: blocks }] = await Promise.all([
     sb.from('appointments')
-      .select('*, services(name, price), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
+      .select('*, services(name, price, duration_min), profiles(nombre, apellido, telefono, direccion), clients(nombre, apellido, telefono, direccion)')
       .neq('status', 'cancelado')
       .gte('starts_at', start).lte('starts_at', end),
     sb.from('blocked_slots').select('*')
@@ -964,10 +1009,18 @@ async function loadCalendar(){
     services.map(s => `<div class="calendar-cell">${s.name}</div>`).join('') +
     '</div>';
 
-  generateSlots().forEach(t => {
+  // cada servicio tiene su propia grilla de horarios según su duración
+  const slotsByService = {};
+  services.forEach(s => { slotsByService[s.id] = new Set(generateSlots(s.duration_min)); });
+
+  // unión de todos los horarios posibles, para las filas de la tabla
+  const allTimes = Array.from(new Set(services.flatMap(s => generateSlots(s.duration_min)))).sort();
+
+  allTimes.forEach(t => {
     html += `<div class="calendar-row" style="grid-template-columns:${cols};">` +
       `<div class="calendar-cell time-cell">${t}</div>` +
       services.map(s => {
+        if(!slotsByService[s.id].has(t)) return `<div class="calendar-cell slot-na">·</div>`;
         const occ = apptLookup[`${t}_${s.id}`];
         if(occ) return `<div class="calendar-cell slot-busy" title="${occ.nombre}" onclick="openClientModal('${occ.id}')">${occ.nombre}</div>`;
         const blockId = blockLookup[`${t}_${s.id}`];
@@ -1035,7 +1088,8 @@ async function refreshModalSlots(id, keepCurrent){
   if(!date){ sel.innerHTML = '<option value="">Elegí una fecha</option>'; return; }
 
   const taken = await getTakenSlots(a.service_id, date, id);
-  const free = generateSlots().filter(t => !taken.includes(t));
+  const dur = a.services?.duration_min || serviceDuration(a.service_id);
+  const free = generateSlots(dur).filter(t => !taken.includes(t));
   sel.innerHTML = free.length
     ? free.map(t => `<option value="${t}">${t}</option>`).join('')
     : '<option value="">Sin horarios disponibles ese día</option>';
@@ -1115,6 +1169,141 @@ async function unblockSlot(id){
     },
     'Habilitar horario'
   );
+}
+
+// ---------- estadísticas ----------
+let statsChartInstance = null;
+
+async function loadStatsSection(){
+  document.getElementById('stats-date').value = todayISO();
+  await loadStats();
+  await loadFrequentClients();
+  await loadCoupons();
+}
+
+async function loadStats(){
+  const date = document.getElementById('stats-date').value || todayISO();
+  const { start, end } = dayRange(date);
+
+  const { data: appts, error } = await sb.from('appointments')
+    .select('price, services(name)')
+    .eq('status', 'completado')
+    .gte('starts_at', start).lte('starts_at', end);
+
+  const box = document.getElementById('stats-summary');
+  if(error){ box.innerHTML = '<div class="empty">No se pudieron cargar las ventas.</div>'; return; }
+
+  const bySvc = {};
+  let total = 0;
+  (appts || []).forEach(a => {
+    const name = a.services?.name || 'Servicio';
+    const price = Number(a.price) || 0;
+    bySvc[name] = (bySvc[name] || 0) + price;
+    total += price;
+  });
+  const rows = Object.entries(bySvc).sort((a,b) => b[1] - a[1]);
+
+  box.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--line);">
+      <span style="color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:0.05em;">Total del día</span>
+      <span class="mono" style="font-size:28px; color:var(--brass); font-weight:600;">${money(total)}</span>
+    </div>
+    ${rows.length ? rows.map(([name, amt]) => `
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px;">
+        <span>${name}</span><span class="mono">${money(amt)}</span>
+      </div>
+    `).join('') : '<div class="empty">Sin turnos completados este día.</div>'}
+  `;
+
+  renderStatsChart(rows);
+}
+
+function renderStatsChart(rows){
+  const ctx = document.getElementById('stats-chart');
+  if(statsChartInstance){ statsChartInstance.destroy(); statsChartInstance = null; }
+  if(!rows.length) return;
+  statsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r[0]),
+      datasets: [{ label: 'Ventas', data: rows.map(r => r[1]), backgroundColor: '#c9a227', borderRadius: 2 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8a8680' }, grid: { color: '#38352f' } },
+        y: { ticks: { color: '#8a8680' }, grid: { color: '#38352f' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+async function loadFrequentClients(){
+  const { data } = await sb.from('appointments')
+    .select('client_id, walk_in_client_id, profiles(nombre, apellido), clients(nombre, apellido)')
+    .eq('status', 'completado');
+
+  const counts = {};
+  (data || []).forEach(a => {
+    const key = a.client_id || a.walk_in_client_id;
+    if(!key) return;
+    const c = a.profiles || a.clients;
+    const nombre = c ? `${c.nombre} ${c.apellido}` : 'Cliente';
+    if(!counts[key]) counts[key] = { nombre, count: 0 };
+    counts[key].count++;
+  });
+
+  const list = Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 15);
+  const box = document.getElementById('stats-frequent');
+  if(!list.length){ box.innerHTML = '<div class="empty">Todavía no hay turnos completados.</div>'; return; }
+
+  box.innerHTML = list.map(c => {
+    const restante = c.count % 10 === 0 ? 10 : 10 - (c.count % 10);
+    const nota = c.count % 10 === 0 ? 'Cupón recién generado' : `Faltan ${restante} para el próximo cupón`;
+    return `
+    <div class="ticket">
+      <div class="num mono">${c.count}</div>
+      <div class="info">
+        <div class="svc">${c.nombre}</div>
+        <p class="who">${nota}</p>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+async function loadCoupons(){
+  const { data } = await sb.from('coupons')
+    .select('*, profiles(nombre, apellido), clients(nombre, apellido)')
+    .order('earned_at', { ascending: false });
+
+  const box = document.getElementById('stats-coupons');
+  if(!data?.length){ box.innerHTML = '<div class="empty">Todavía no se generó ningún cupón.</div>'; return; }
+
+  box.innerHTML = data.map(cp => {
+    const c = cp.profiles || cp.clients;
+    const estadoClass = cp.status === 'usado' ? 'completado' : (cp.status === 'vencido' ? 'cancelado' : 'confirmado');
+    return `
+    <div class="ticket ${estadoClass}">
+      <div class="num mono">${cp.code}</div>
+      <div class="info">
+        <div class="svc">${c ? c.nombre + ' ' + c.apellido : 'Cliente'} · ${cp.discount_percent}% OFF</div>
+        <p class="who">${fmtDateTime(cp.earned_at)}</p>
+      </div>
+      <span class="status ${estadoClass}">${cp.status}</span>
+      ${cp.status === 'activo' ? `<button onclick="markCouponUsed('${cp.id}')">Marcar usado</button>` : ''}
+    </div>
+  `;
+  }).join('');
+}
+
+async function markCouponUsed(id){
+  showConfirm('¿Marcar este cupón como usado?', async () => {
+    const { error } = await sb.from('coupons').update({ status: 'usado', used_at: new Date().toISOString() }).eq('id', id);
+    if(error){ showAlert('No se pudo actualizar: ' + error.message, 'Error'); return; }
+    loadCoupons();
+  }, 'Marcar cupón usado');
 }
 
 // ---------- init ----------

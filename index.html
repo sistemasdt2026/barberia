@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FILO — Barbería</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
 <meta name="description" content="FILO, barbería en Berazategui. Cortes de precisión, barba y color. Reservá tu turno online.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -88,8 +89,9 @@
   .hero p{ color:var(--muted); font-size:18px; max-width:460px; margin-bottom:32px; }
   .hero-cta{ display:flex; gap:14px; flex-wrap:wrap; }
   .hero-deco{
-    position:absolute; right:-60px; top:50%; transform:translateY(-50%);
-    width:420px; height:420px; opacity:0.9; pointer-events:none;
+    position:absolute; right:0; top:50%; transform:translateY(-50%);
+    width:min(46vw, 560px); height:auto; aspect-ratio:1536/1024; object-fit:contain;
+    opacity:0.95; pointer-events:none;
   }
   @media (max-width:900px){ .hero-deco{ display:none; } }
 
@@ -210,16 +212,7 @@
       <a href="#servicios" class="btn ghost">Ver servicios</a>
     </div>
   </div>
-  <svg class="hero-deco" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="200" cy="200" r="170" fill="none" stroke="var(--line)" stroke-width="1"/>
-    <g transform="translate(140,90)">
-      <rect x="0" y="0" width="40" height="220" rx="20" fill="var(--bg-alt)" stroke="var(--brass)" stroke-width="2"/>
-      <path d="M0 20 L40 50 M0 60 L40 90 M0 100 L40 130 M0 140 L40 170 M0 180 L40 210" stroke="var(--red)" stroke-width="8" stroke-linecap="round"/>
-      <path d="M0 40 L40 70 M0 80 L40 110 M0 120 L40 150 M0 160 L40 190" stroke="var(--brass)" stroke-width="8" stroke-linecap="round"/>
-      <circle cx="20" cy="-14" r="16" fill="var(--bg-alt)" stroke="var(--brass)" stroke-width="2"/>
-      <circle cx="20" cy="234" r="16" fill="var(--bg-alt)" stroke="var(--brass)" stroke-width="2"/>
-    </g>
-  </svg>
+  <img class="hero-deco" src="img/logo.png" alt="Logo FILO" loading="eager">
 </div>
 
 <section id="nosotros">

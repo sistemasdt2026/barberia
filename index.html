@@ -95,7 +95,8 @@
 
   .split{ display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
   .split p{ color:var(--muted); margin-bottom:16px; font-size:15px; }
-  .split-art{ background:var(--bg-alt); border:1px solid var(--line); border-radius:var(--radius); padding:30px; }
+  .split-art{ background:var(--bg-alt); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .split-art img{ width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
   @media (max-width:800px){ .split{ grid-template-columns:1fr; } }
 
   h2.section-title{ font-size:38px; margin-bottom:36px; }
@@ -109,9 +110,9 @@
 
   .carousel{ position:relative; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--bg-alt); }
   .carousel-track{ display:flex; transition:transform .5s cubic-bezier(.65,0,.35,1); }
-  .carousel-slide{ flex:0 0 100%; display:flex; flex-direction:column; align-items:center; padding:40px 20px 30px; }
-  .carousel-slide svg{ width:100%; max-width:420px; height:auto; }
-  .carousel-caption{ margin-top:18px; text-align:center; }
+  .carousel-slide{ flex:0 0 100%; display:flex; flex-direction:column; }
+  .carousel-slide img{ width:100%; aspect-ratio:16/10; object-fit:cover; display:block; }
+  .carousel-caption{ margin:18px 0 26px; text-align:center; padding:0 16px; }
   .carousel-caption .tag{ color:var(--brass); font-size:12px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px; }
   .carousel-caption .title{ font-family:'Anton', sans-serif; font-size:24px; text-transform:uppercase; }
   .carousel-arrow{
@@ -230,20 +231,7 @@
       <p>Nos especializamos en cortes de precisión, arreglo de barba y color, en un ambiente pensado para que la espera sea parte de la experiencia, no un trámite.</p>
     </div>
     <div class="split-art">
-      <svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg">
-        <path d="M120 280 L120 200 Q120 180 140 180 L220 180 Q240 180 240 200 L240 260" fill="none" stroke="var(--brass)" stroke-width="3"/>
-        <rect x="100" y="150" width="150" height="34" rx="6" fill="var(--bg)" stroke="var(--brass)" stroke-width="3"/>
-        <rect x="130" y="100" width="90" height="54" rx="8" fill="var(--bg)" stroke="var(--brass)" stroke-width="3"/>
-        <line x1="120" y1="280" x2="240" y2="280" stroke="var(--red)" stroke-width="4"/>
-        <circle cx="120" cy="290" r="8" fill="var(--bg-alt)" stroke="var(--red)" stroke-width="2"/>
-        <circle cx="240" cy="290" r="8" fill="var(--bg-alt)" stroke="var(--red)" stroke-width="2"/>
-        <g transform="translate(280,60) rotate(20)">
-          <circle cx="0" cy="0" r="10" fill="none" stroke="var(--cream)" stroke-width="3"/>
-          <circle cx="0" cy="24" r="10" fill="none" stroke="var(--cream)" stroke-width="3"/>
-          <line x1="8" y1="8" x2="60" y2="-30" stroke="var(--cream)" stroke-width="3" stroke-linecap="round"/>
-          <line x1="8" y1="16" x2="60" y2="50" stroke="var(--cream)" stroke-width="3" stroke-linecap="round"/>
-        </g>
-      </svg>
+      <img src="img/nosotros.jpg" alt="Interior de la barbería FILO" loading="lazy">
     </div>
   </div>
 </section>
@@ -265,15 +253,7 @@
     <div class="carousel-track" id="carousel-track">
 
       <div class="carousel-slide">
-        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
-          <g transform="translate(120,40) rotate(25)">
-            <circle cx="0" cy="0" r="16" fill="none" stroke="var(--brass)" stroke-width="4"/>
-            <circle cx="0" cy="38" r="16" fill="none" stroke="var(--brass)" stroke-width="4"/>
-            <line x1="13" y1="13" x2="150" y2="-70" stroke="var(--cream)" stroke-width="5" stroke-linecap="round"/>
-            <line x1="13" y1="25" x2="150" y2="110" stroke="var(--cream)" stroke-width="5" stroke-linecap="round"/>
-          </g>
-          <line x1="60" y1="220" x2="340" y2="220" stroke="var(--red)" stroke-width="3"/>
-        </svg>
+        <img src="img/galeria-1.jpg" alt="Corte de precisión en FILO" loading="lazy">
         <div class="carousel-caption">
           <div class="tag">01 — Precisión</div>
           <div class="title">Cortes de precisión</div>
@@ -281,11 +261,7 @@
       </div>
 
       <div class="carousel-slide">
-        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
-          <path d="M140 60 Q200 20 260 60 Q280 120 250 180 Q200 220 150 180 Q120 120 140 60 Z" fill="none" stroke="var(--brass)" stroke-width="4"/>
-          <path d="M170 100 Q200 90 230 100" fill="none" stroke="var(--red)" stroke-width="3"/>
-          <rect x="185" y="190" width="30" height="46" rx="6" fill="none" stroke="var(--cream)" stroke-width="3"/>
-        </svg>
+        <img src="img/galeria-2.jpg" alt="Barba y perfilado en FILO" loading="lazy">
         <div class="carousel-caption">
           <div class="tag">02 — Detalle</div>
           <div class="title">Barba &amp; perfilado</div>
@@ -293,12 +269,7 @@
       </div>
 
       <div class="carousel-slide">
-        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
-          <path d="M140 220 L140 150 Q140 130 160 130 L240 130 Q260 130 260 150 L260 210" fill="none" stroke="var(--brass)" stroke-width="4"/>
-          <rect x="120" y="100" width="160" height="34" rx="6" fill="none" stroke="var(--brass)" stroke-width="4"/>
-          <rect x="150" y="55" width="100" height="50" rx="8" fill="none" stroke="var(--brass)" stroke-width="4"/>
-          <line x1="140" y1="220" x2="260" y2="220" stroke="var(--red)" stroke-width="4"/>
-        </svg>
+        <img src="img/galeria-3.jpg" alt="Ambiente de la barbería FILO" loading="lazy">
         <div class="carousel-caption">
           <div class="tag">03 — Ambiente</div>
           <div class="title">Ambiente FILO</div>
@@ -306,12 +277,7 @@
       </div>
 
       <div class="carousel-slide">
-        <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
-          <rect x="175" y="40" width="50" height="180" rx="25" fill="var(--bg)" stroke="var(--brass)" stroke-width="3"/>
-          <path d="M175 60 L225 90 M175 100 L225 130 M175 140 L225 170 M175 180 L225 200" stroke="var(--red)" stroke-width="6" stroke-linecap="round"/>
-          <path d="M175 80 L225 110 M175 120 L225 150 M175 160 L225 190" stroke="var(--brass)" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="200" cy="26" r="14" fill="var(--bg-alt)" stroke="var(--brass)" stroke-width="3"/>
-        </svg>
+        <img src="img/galeria-4.jpg" alt="Atención personalizada en FILO" loading="lazy">
         <div class="carousel-caption">
           <div class="tag">04 — Tradición</div>
           <div class="title">Atención personalizada</div>

@@ -290,6 +290,11 @@
       <h2>Mis turnos de hoy</h2>
       <div id="my-appointments"></div>
     </section>
+
+    <section>
+      <h2>Mis cupones</h2>
+      <div id="my-coupons"></div>
+    </section>
   </div>
 
   <!-- ============ VISTA: ADMIN ============ -->
@@ -632,6 +637,7 @@ async function boot(){
     document.getElementById('client-greet').textContent = `Hola, ${currentProfile?.nombre || ''}`;
     await loadServices();
     loadMyAppointments();
+    loadMyCoupons();
   }
 }
 
@@ -726,6 +732,28 @@ async function loadMyAppointments(){
       </div>
       <span class="status ${a.status}">${a.status}</span>
       ${a.status==='pendiente' ? `<button class="danger" onclick="cancelAppointment('${a.id}')">Cancelar</button>` : ''}
+    </div>
+  `).join('');
+}
+
+async function loadMyCoupons(){
+  const { data, error } = await sb.from('coupons')
+    .select('*')
+    .eq('client_id', currentUser.id)
+    .eq('status', 'activo')
+    .order('vence_el', { ascending: true });
+
+  const box = document.getElementById('my-coupons');
+  if(error || !data?.length){ box.innerHTML = '<div class="empty">Todavía no tenés cupones — se generan solos cada 10 turnos completados.</div>'; return; }
+
+  box.innerHTML = data.map(cp => `
+    <div class="ticket confirmado">
+      <div class="num mono">${cp.code}</div>
+      <div class="info">
+        <div class="svc">${cp.discount_percent}% de descuento</div>
+        <p class="who">Vence el ${fmtDateTime(cp.vence_el)}</p>
+      </div>
+      <span class="status confirmado">activo</span>
     </div>
   `).join('');
 }
@@ -1284,12 +1312,15 @@ async function loadCoupons(){
   box.innerHTML = data.map(cp => {
     const c = cp.profiles || cp.clients;
     const estadoClass = cp.status === 'usado' ? 'completado' : (cp.status === 'vencido' ? 'cancelado' : 'confirmado');
+    const fechaInfo = cp.status === 'activo'
+      ? `Vence el ${fmtDateTime(cp.vence_el)}`
+      : `Generado el ${fmtDateTime(cp.earned_at)}`;
     return `
     <div class="ticket ${estadoClass}">
       <div class="num mono">${cp.code}</div>
       <div class="info">
         <div class="svc">${c ? c.nombre + ' ' + c.apellido : 'Cliente'} · ${cp.discount_percent}% OFF</div>
-        <p class="who">${fmtDateTime(cp.earned_at)}</p>
+        <p class="who">${fechaInfo}</p>
       </div>
       <span class="status ${estadoClass}">${cp.status}</span>
       ${cp.status === 'activo' ? `<button onclick="markCouponUsed('${cp.id}')">Marcar usado</button>` : ''}
